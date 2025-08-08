@@ -28,6 +28,12 @@ const Header: React.FC = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
+            <a
+              href="/app"
+              className="text-gray-700 hover:text-blue-700 transition-colors duration-200"
+            >
+              Sign In
+            </a>
             <button
               onClick={() => scrollToSection('features')}
               className="text-gray-700 hover:text-blue-700 transition-colors duration-200"
@@ -68,6 +74,12 @@ const Header: React.FC = () => {
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-200">
             <nav className="flex flex-col space-y-4">
+              <a
+                href="/app"
+                className="text-left text-gray-700 hover:text-blue-700 transition-colors duration-200"
+              >
+                Sign In
+              </a>
               <button
                 onClick={() => scrollToSection('features')}
                 className="text-left text-gray-700 hover:text-blue-700 transition-colors duration-200"

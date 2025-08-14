@@ -8,8 +8,8 @@ const AppLayout: React.FC = () => {
   const location = useLocation();
 
   const navigation = [
-    { name: 'Add Expense', href: '/app', icon: Plus },
-    { name: 'View Expenses', href: '/app/expenses', icon: Receipt },
+    { name: 'View Expenses', href: '/app', icon: Receipt },
+    { name: 'Add Expense', href: '/app/add', icon: Plus },
     { name: 'Settings', href: '/app/settings', icon: Settings },
   ];
 

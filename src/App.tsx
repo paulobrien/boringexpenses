@@ -33,7 +33,8 @@ function App() {
             <LoginForm />
           )
         }>
-          <Route index element={<AddExpense />} />
+          <Route index element={<ViewExpenses />} />
+          <Route path="add" element={<AddExpense />} />
           <Route path="expenses" element={<ViewExpenses />} />
           <Route path="settings" element={<Settings />} />
         </Route>

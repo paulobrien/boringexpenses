@@ -2,8 +2,18 @@ import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
+interface UserProfile {
+  id: string;
+  full_name: string;
+  company_id: string | null;
+  company?: {
+    id: string;
+    name: string;
+  };
+}
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,8 +26,16 @@ export function useAuth() {
         } else {
           setUser(session?.user ?? null);
         }
+        
+        // Load user profile and company info
+        if (session?.user) {
+          loadUserProfile(session.user.id);
+        } else {
+          setProfile(null);
+        }
       } catch (error) {
         setUser(null);
+        setProfile(null);
       } finally {
         setLoading(false);
       }
@@ -34,13 +52,11 @@ export function useAuth() {
           setUser(session?.user ?? null);
           // Create profile asynchronously without blocking
           if (session?.user) {
-            Promise.resolve(supabase.from('profiles').upsert({
-              id: session.user.id,
-              full_name: session.user.user_metadata?.full_name || '',
-            })).catch(console.error);
+            loadUserProfile(session.user.id);
           }
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
+          setProfile(null);
         } else if (event === 'USER_UPDATED') {
           setUser(session?.user ?? null);
         } else {
@@ -52,6 +68,38 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const loadUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          companies:company_id (
+            id,
+            name
+          )
+        `)
+        .eq('id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (data) {
+        setProfile({
+          ...data,
+          company: data.companies ? {
+            id: data.companies.id,
+            name: data.companies.name
+          } : undefined
+        });
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+      setProfile(null);
+    }
+  };
   // Add session validation helper
   const validateSession = async () => {
     try {
@@ -110,6 +158,7 @@ export function useAuth() {
 
   return {
     user,
+    profile,
     loading,
     validateSession,
     signInWithEmail,

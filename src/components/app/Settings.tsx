@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { User, Save, Check } from 'lucide-react';
+import { User, Save, Check, Building } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 
 const Settings: React.FC = () => {
-  const { user, validateSession } = useAuth();
+  const { user, profile, validateSession } = useAuth();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [profile, setProfile] = useState({
+  const [profileData, setProfileData] = useState({
     full_name: '',
   });
 
@@ -33,7 +33,7 @@ const Settings: React.FC = () => {
       }
 
       if (data) {
-        setProfile({
+        setProfileData({
           full_name: data.full_name || '',
         });
       }
@@ -43,8 +43,8 @@ const Settings: React.FC = () => {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setProfile({
-      ...profile,
+    setProfileData({
+      ...profileData,
       [e.target.name]: e.target.value,
     });
   };
@@ -61,7 +61,7 @@ const Settings: React.FC = () => {
         .from('profiles')
         .upsert({
           id: user.id,
-          full_name: profile.full_name,
+          full_name: profileData.full_name,
           updated_at: new Date().toISOString(),
         });
 
@@ -126,7 +126,7 @@ const Settings: React.FC = () => {
                 type="text"
                 id="full_name"
                 name="full_name"
-                value={profile.full_name}
+                value={profileData.full_name}
                 onChange={handleChange}
                 placeholder="Enter your full name"
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
@@ -150,6 +150,35 @@ const Settings: React.FC = () => {
           </form>
         </div>
 
+        {/* Company Information */}
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <div className="flex items-center mb-6">
+            <Building className="h-6 w-6 text-blue-600 mr-3" />
+            <h2 className="text-xl font-bold text-gray-900">Company Information</h2>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-center py-3 border-b border-gray-100">
+              <span className="text-gray-600">Company Name</span>
+              <span className="font-medium text-gray-900">
+                {profile?.company?.name || 'No company assigned'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-3 border-b border-gray-100">
+              <span className="text-gray-600">Company ID</span>
+              <span className="font-medium text-gray-900 text-sm">
+                {profile?.company?.id || 'N/A'}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> Company settings can only be changed by contacting support. 
+              This ensures proper access control and data security.
+            </p>
+          </div>
+        </div>
         {/* Account Information */}
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Account Information</h2>

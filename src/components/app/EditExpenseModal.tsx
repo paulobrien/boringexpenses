@@ -1,27 +1,45 @@
 import React, { useState } from 'react';
-import { X, Save, Calendar, MapPin, DollarSign, FileText, Camera, Image } from 'lucide-react';
+import { X, Save, Calendar, MapPin, PoundSterling, FileText, Camera, Image, FileCheck, FolderOpen } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface Expense {
   id: string;
+  claim_id: string | null;
+  category_id: string | null;
   date: string;
   description: string;
   location: string;
   amount: number;
   image_url: string | null;
+  filed: boolean;
+}
+
+interface Claim {
+  id: string;
+  title: string;
+  description: string;
+}
+interface Category {
+  id: string;
+  name: string;
 }
 
 interface EditExpenseModalProps {
   expense: Expense;
+  claims: Claim[];
+  categories: Category[];
   onClose: () => void;
   onSave: () => void;
 }
 
-const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, onClose, onSave }) => {
+const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, claims, categories, onClose, onSave }) => {
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(expense.image_url);
   const [uploading, setUploading] = useState(false);
+  const [filed, setFiled] = useState(expense.filed);
+  const [claimId, setClaimId] = useState<string>(expense.claim_id || '');
+  const [categoryId, setCategoryId] = useState<string>(expense.category_id || '');
   const [formData, setFormData] = useState({
     date: new Date(expense.date).toISOString().slice(0, 16),
     description: expense.description,
@@ -99,7 +117,10 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, onClose, o
           description: formData.description,
           location: formData.location,
           amount: parseFloat(formData.amount),
+          claim_id: claimId || null,
+          category_id: categoryId || null,
           image_url: imageUrl,
+          filed: filed,
         })
         .eq('id', expense.id);
 
@@ -183,12 +204,12 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, onClose, o
             {/* Amount */}
             <div>
               <label htmlFor="amount" className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                <DollarSign className="h-4 w-4 mr-2" />
+                <PoundSterling className="h-4 w-4 mr-2" />
                 Amount
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500">$</span>
+                  <span className="text-gray-500">£</span>
                 </div>
                 <input
                   type="number"
@@ -204,6 +225,53 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, onClose, o
               </div>
             </div>
 
+            {/* Category Selection */}
+            <div>
+              <label htmlFor="category" className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                <FileText className="h-4 w-4 mr-2" />
+                Category (Optional)
+              </label>
+              <select
+                id="category"
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+              >
+                <option value="">Select a category</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Categorize this expense for better reporting and analysis
+              </p>
+            </div>
+
+            {/* Claim Association */}
+            <div>
+              <label htmlFor="claim" className="flex items-center text-sm font-medium text-gray-700 mb-2">
+                <FolderOpen className="h-4 w-4 mr-2" />
+                Associated Claim (Optional)
+              </label>
+              <select
+                id="claim"
+                value={claimId}
+                onChange={(e) => setClaimId(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+              >
+                <option value="">No claim (unassociated)</option>
+                {claims.map((claim) => (
+                  <option key={claim.id} value={claim.id}>
+                    {claim.title}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Associate this expense with a claim for better organization
+              </p>
+            </div>
             {/* Image Upload */}
             <div>
               <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
@@ -261,6 +329,39 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, onClose, o
                   </button>
                 </div>
               )}
+            </div>
+
+            {/* Filed Status */}
+            <div>
+              <label className="flex items-center text-sm font-medium text-gray-700 mb-4">
+                <FileCheck className="h-4 w-4 mr-2" />
+                Filing Status
+              </label>
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="filed"
+                    checked={!filed}
+                    onChange={() => setFiled(false)}
+                    className="mr-2 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700">Not Filed</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="filed"
+                    checked={filed}
+                    onChange={() => setFiled(true)}
+                    className="mr-2 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700">Filed</span>
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Mark expense as filed when processed in your corporate system
+              </p>
             </div>
 
             {/* Buttons */}

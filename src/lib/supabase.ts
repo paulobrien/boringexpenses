@@ -18,22 +18,94 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 export type Database = {
   public: {
     Tables: {
+      companies: {
+        Row: {
+          id: string;
+          name: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
       profiles: {
         Row: {
           id: string;
           full_name: string;
+          company_id: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id: string;
           full_name?: string;
+          company_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           full_name?: string;
+          company_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      claims: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          description: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          description?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          description?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      expense_categories: {
+        Row: {
+          id: string;
+          company_id: string;
+          name: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_id: string;
+          name: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          company_id?: string;
+          name?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -42,6 +114,8 @@ export type Database = {
         Row: {
           id: string;
           user_id: string;
+          claim_id: string | null;
+          category_id: string | null;
           date: string;
           description: string;
           location: string;
@@ -49,10 +123,13 @@ export type Database = {
           image_url: string | null;
           created_at: string;
           updated_at: string;
+          filed: boolean;
         };
         Insert: {
           id?: string;
           user_id: string;
+          claim_id?: string | null;
+          category_id?: string | null;
           date: string;
           description: string;
           location?: string;
@@ -60,10 +137,13 @@ export type Database = {
           image_url?: string | null;
           created_at?: string;
           updated_at?: string;
+          filed?: boolean;
         };
         Update: {
           id?: string;
           user_id?: string;
+          claim_id?: string | null;
+          category_id?: string | null;
           date?: string;
           description?: string;
           location?: string;
@@ -71,6 +151,7 @@ export type Database = {
           image_url?: string | null;
           created_at?: string;
           updated_at?: string;
+          filed?: boolean;
         };
       };
     };

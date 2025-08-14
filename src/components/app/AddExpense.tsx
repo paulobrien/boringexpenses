@@ -1,10 +1,23 @@
 import React, { useState } from 'react';
-import { Plus, Calendar, MapPin, PoundSterling, FileText, Check, Camera, Image, X } from 'lucide-react';
+import { Plus, Calendar, MapPin, PoundSterling, FileText, Check, Camera, Image, X, FolderOpen } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 
+interface Claim {
+  id: string;
+  title: string;
+  description: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+}
+
 const AddExpense: React.FC = () => {
   const { user, validateSession } = useAuth();
+  const [claims, setClaims] = useState<Claim[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -12,12 +25,55 @@ const AddExpense: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [claimId, setClaimId] = useState<string>('');
+  const [categoryId, setCategoryId] = useState<string>('');
   const [formData, setFormData] = useState({
     date: new Date().toISOString().slice(0, 16), // YYYY-MM-DDTHH:MM format
     description: '',
     location: '',
     amount: '',
   });
+
+  // Load claims on component mount
+  React.useEffect(() => {
+    if (user) {
+      loadClaims();
+      loadCategories();
+    }
+  }, [user]);
+
+  const loadClaims = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('claims')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setClaims(data || []);
+    } catch (error) {
+      console.error('Error loading claims:', error);
+    }
+  };
+
+  const loadCategories = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('expense_categories')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -142,6 +198,9 @@ const AddExpense: React.FC = () => {
         description: formData.description,
         location: formData.location,
         amount: parseFloat(formData.amount),
+        claim_id: claimId || null,
+        category_id: categoryId || null,
+        filed: false,
       }).select().single();
 
       if (error) {
@@ -175,6 +234,8 @@ const AddExpense: React.FC = () => {
         location: '',
         amount: '',
       });
+      setClaimId('');
+      setCategoryId('');
       setImageFile(null);
       setImagePreview(null);
 
@@ -301,6 +362,53 @@ const AddExpense: React.FC = () => {
             </p>
           </div>
 
+          {/* Category Selection */}
+          <div>
+            <label htmlFor="category" className="flex items-center text-sm font-medium text-gray-700 mb-2">
+              <FileText className="h-4 w-4 mr-2" />
+              Category (Optional)
+            </label>
+            <select
+              id="category"
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+            >
+              <option value="">Select a category</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Categorize this expense for better reporting and analysis
+            </p>
+          </div>
+
+          {/* Claim Association */}
+          <div>
+            <label htmlFor="claim" className="flex items-center text-sm font-medium text-gray-700 mb-2">
+              <FolderOpen className="h-4 w-4 mr-2" />
+              Associated Claim (Optional)
+            </label>
+            <select
+              id="claim"
+              value={claimId}
+              onChange={(e) => setClaimId(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+            >
+              <option value="">No claim (unassociated)</option>
+              {claims.map((claim) => (
+                <option key={claim.id} value={claim.id}>
+                  {claim.title}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Associate this expense with a claim for better organization
+            </p>
+          </div>
           {/* Image Upload */}
           <div>
             <label className="flex items-center text-sm font-medium text-gray-700 mb-2">

@@ -1,10 +1,10 @@
 import React, { ReactNode } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { Plus, Receipt, Settings, LogOut, Zap } from 'lucide-react';
+import { Plus, Receipt, Settings, LogOut, Zap, User } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 const AppLayout: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const location = useLocation();
 
   const navigation = [
@@ -80,14 +80,20 @@ const AppLayout: React.FC = () => {
             <div className="px-6 py-4 border-t border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-700 font-semibold text-sm">
-                      {user?.email?.charAt(0).toUpperCase()}
-                    </span>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden bg-gray-100">
+                    {profile?.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt="User avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="h-5 w-5 text-gray-400" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
-                      {user?.email}
+                      {profile?.full_name || user?.email}
                     </p>
                   </div>
                 </div>

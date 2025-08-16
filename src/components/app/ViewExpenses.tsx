@@ -685,6 +685,7 @@ const ViewExpenses: React.FC = () => {
           expense={editingExpense}
           claims={claims}
           categories={categories}
+          initialImagePreviewUrl={imageUrls[editingExpense.id]}
           onClose={() => setEditingExpense(null)}
           onSave={() => {
             loadExpenses();

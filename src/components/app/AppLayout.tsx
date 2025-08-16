@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { Plus, Receipt, Settings, LogOut, Zap } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -105,7 +105,7 @@ const AppLayout: React.FC = () => {
 
         {/* Main content */}
         <div className="lg:pl-64 flex-1">
-          <div className="p-4 lg:p-8">
+          <div className="p-4 lg:p-8 pb-20 lg:pb-8">
             <Outlet />
           </div>
         </div>
@@ -113,7 +113,7 @@ const AppLayout: React.FC = () => {
 
       {/* Mobile bottom navigation */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
-        <nav className="flex justify-around py-2">
+        <nav className="flex justify-around py-2 pb-[env(safe-area-inset-bottom)]">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (

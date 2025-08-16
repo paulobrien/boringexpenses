@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Edit3, Trash2, MapPin, Calendar, PoundSterling, Search, Image, Download, FileCheck, FileX, Plus, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
+import { Receipt, Edit3, Trash2, MapPin, Calendar, Search, Image, Download, FileCheck, FileX, Plus, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import EditExpenseModal from './EditExpenseModal';
@@ -18,7 +18,6 @@ interface Expense {
   image_url: string | null;
   filed: boolean;
   created_at: string;
-  filed: boolean;
 }
 
 interface Claim {
@@ -58,14 +57,13 @@ const ViewExpenses: React.FC = () => {
 
   const getSignedImageUrl = async (imagePath: string): Promise<string | null> => {
     try {
-      // Extract the path from the full URL if it's a full URL
       const path = imagePath.includes('supabase.co') 
         ? imagePath.split('/images/')[1] 
         : imagePath;
       
       const { data, error } = await supabase.storage
         .from('images')
-        .createSignedUrl(path, 3600); // 1 hour expiry
+        .createSignedUrl(path, 3600);
       
       if (error) throw error;
       return data.signedUrl;
@@ -74,6 +72,7 @@ const ViewExpenses: React.FC = () => {
       return null;
     }
   };
+
   const loadExpenses = async () => {
     const isValidSession = await validateSession();
     if (!isValidSession || !user) {
@@ -91,7 +90,6 @@ const ViewExpenses: React.FC = () => {
       if (error) throw error;
       setExpenses(data || []);
       
-      // Load signed URLs for images
       const urlPromises: Record<string, Promise<string | null>> = {};
       data?.forEach(expense => {
         if (expense.image_url) {
@@ -178,13 +176,13 @@ const ViewExpenses: React.FC = () => {
       if (error) throw error;
       
       setClaims(claims.filter(claim => claim.id !== claimId));
-      // Reload expenses to reflect unassociated status
       loadExpenses();
     } catch (error) {
       console.error('Error deleting claim:', error);
       alert('Error deleting claim. Please try again.');
     }
   };
+
   const toggleFiledStatus = async (id: string, currentStatus: boolean) => {
     try {
       const { error } = await supabase
@@ -194,7 +192,6 @@ const ViewExpenses: React.FC = () => {
 
       if (error) throw error;
       
-      // Update local state
       setExpenses(expenses.map(expense => 
         expense.id === id ? { ...expense, filed: !currentStatus } : expense
       ));
@@ -213,6 +210,7 @@ const ViewExpenses: React.FC = () => {
     }
     setExpandedClaims(newExpanded);
   };
+
   const downloadExpensesAsZip = async () => {
     if (filteredExpenses.length === 0) {
       alert('No expenses to export');
@@ -224,29 +222,14 @@ const ViewExpenses: React.FC = () => {
     try {
       const zip = new JSZip();
       
-      // Prepare Excel data
       const excelData = [];
       const imagePromises: Promise<void>[] = [];
       
-      // Add header row
-      excelData.push([
-        'Date',
-        'Description', 
-        'Category',
-        'Location',
-        'Amount (£)',
-        'Claim',
-        'Filed',
-        'Image Filename',
-        'Created At'
-      ]);
+      excelData.push(['Date', 'Description', 'Category', 'Location', 'Amount (£)', 'Claim', 'Filed', 'Image Filename', 'Created At']);
 
-      // Process each expense
-      filteredExpenses.forEach((expense, index) => {
+      filteredExpenses.forEach((expense) => {
         const imageFilename = expense.image_url ? `expense_${expense.id}.jpg` : '';
-        const claimTitle = expense.claim_id 
-          ? claims.find(c => c.id === expense.claim_id)?.title || 'Unknown Claim'
-          : 'Unassociated';
+        const claimTitle = expense.claim_id ? claims.find(c => c.id === expense.claim_id)?.title || 'Unknown Claim' : 'Unassociated';
         const categoryName = getCategoryName(expense.category_id) || '';
         
         excelData.push([
@@ -261,52 +244,22 @@ const ViewExpenses: React.FC = () => {
           new Date(expense.created_at).toLocaleString('en-GB')
         ]);
 
-        // Download image if exists
         if (expense.image_url) {
-          const imagePromise = downloadAndAddImageToZip(
-            zip, 
-            expense.image_url, 
-            imageFilename
-          );
+          const imagePromise = downloadAndAddImageToZip(zip, expense.image_url, imageFilename);
           imagePromises.push(imagePromise);
         }
       });
 
-      // Create Excel file
       const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-      
-      // Set column widths
-      worksheet['!cols'] = [
-        { wch: 20 }, // Date
-        { wch: 30 }, // Description
-        { wch: 20 }, // Category
-        { wch: 25 }, // Location
-        { wch: 12 }, // Amount
-        { wch: 20 }, // Claim
-        { wch: 8 },  // Filed
-        { wch: 25 }, // Image Filename
-        { wch: 20 }  // Created At
-      ];
-
+      worksheet['!cols'] = [{ wch: 20 }, { wch: 30 }, { wch: 20 }, { wch: 25 }, { wch: 12 }, { wch: 20 }, { wch: 8 }, { wch: 25 }, { wch: 20 }];
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Expenses');
-      
-      // Generate Excel file as array buffer
-      const excelBuffer = XLSX.write(workbook, { 
-        type: 'array', 
-        bookType: 'xlsx' 
-      });
-      
-      // Add Excel file to ZIP
+      const excelBuffer = XLSX.write(workbook, { type: 'array', bookType: 'xlsx' });
       zip.file('expenses.xlsx', excelBuffer);
 
-      // Wait for all images to download
       await Promise.all(imagePromises);
 
-      // Generate ZIP file
       const zipContent = await zip.generateAsync({ type: 'blob' });
-
-      // Download ZIP file
       const link = document.createElement('a');
       link.href = URL.createObjectURL(zipContent);
       link.download = `expenses_${new Date().toISOString().slice(0, 10)}.zip`;
@@ -323,25 +276,16 @@ const ViewExpenses: React.FC = () => {
     }
   };
 
-  const downloadAndAddImageToZip = async (
-    zip: JSZip, 
-    imageUrl: string, 
-    filename: string
-  ): Promise<void> => {
+  const downloadAndAddImageToZip = async (zip: JSZip, imageUrl: string, filename: string): Promise<void> => {
     try {
-      // Get signed URL if needed
       let downloadUrl = imageUrl;
       if (imageUrl.includes('supabase.co') && !imageUrl.includes('token=')) {
         const path = imageUrl.split('/images/')[1];
-        const { data, error } = await supabase.storage
-          .from('images')
-          .createSignedUrl(path, 3600);
-        
+        const { data, error } = await supabase.storage.from('images').createSignedUrl(path, 3600);
         if (!error && data) {
           downloadUrl = data.signedUrl;
         }
       }
-
       const response = await fetch(downloadUrl);
       if (response.ok) {
         const imageBlob = await response.blob();
@@ -349,46 +293,29 @@ const ViewExpenses: React.FC = () => {
       }
     } catch (error) {
       console.error(`Error downloading image ${filename}:`, error);
-      // Continue with other images even if one fails
     }
   };
 
   const filteredExpenses = expenses.filter(expense =>
     expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    expense.location.toLowerCase().includes(searchTerm.toLowerCase())
+    (expense.location && expense.location.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const unassociatedExpenses = filteredExpenses.filter(expense => !expense.claim_id);
-  const getClaimExpenses = (claimId: string) => 
-    filteredExpenses.filter(expense => expense.claim_id === claimId);
+  const getClaimExpenses = (claimId: string) => filteredExpenses.filter(expense => expense.claim_id === claimId);
   const totalAmount = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
-  };
-
-  const getCategoryName = (categoryId: string | null) => {
-    if (!categoryId) return null;
-    const category = categories.find(c => c.id === categoryId);
-    return category ? category.name : 'Unknown Category';
-  };
-
-  const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'GBP',
-    }).format(amount);
-  };
+  const formatDate = (dateString: string) => new Date(dateString).toLocaleString();
+  const getCategoryName = (categoryId: string | null) => categories.find(c => c.id === categoryId)?.name || 'Uncategorized';
+  const formatAmount = (amount: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(amount);
 
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+          <div className="h-8 bg-gray-300/20 rounded w-1/4 mb-6"></div>
           <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-24 bg-gray-200 rounded-lg"></div>
-            ))}
+            {[...Array(5)].map((_, i) => <div key={i} className="h-24 bg-gray-300/20 rounded-lg"></div>)}
           </div>
         </div>
       </div>
@@ -396,38 +323,28 @@ const ViewExpenses: React.FC = () => {
   }
 
   const renderExpenseCard = (expense: Expense) => (
-    <div key={expense.id} className={`rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 ml-0 ${
-      expense.filed 
-        ? 'bg-gray-50 opacity-60' 
-        : 'bg-white'
+    <div key={expense.id} className={`rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 ml-0 bg-white/5 border border-gray-300/10 ${
+      expense.filed ? 'opacity-60' : ''
     }`}>
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
         <div className="flex-1 space-y-2 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className={`text-lg font-semibold ${
-              expense.filed ? 'text-gray-500' : 'text-gray-900'
-            }`}>
+            <h3 className={`text-lg font-semibold ${expense.filed ? 'text-text-secondary' : 'text-text-primary'}`}>
               {expense.description}
             </h3>
             {expense.category_id && (
-              <span className={`text-xs px-2 py-1 rounded-full ${
-                expense.filed 
-                  ? 'bg-gray-200 text-gray-500' 
-                  : 'bg-blue-100 text-blue-800'
-              }`}>
+              <span className={`text-xs px-2 py-1 rounded-full ${expense.filed ? 'bg-gray-300/10 text-text-secondary' : 'bg-accent/10 text-accent'}`}>
                 {getCategoryName(expense.category_id)}
               </span>
             )}
             {expense.filed && (
-              <div className="flex items-center text-green-600 text-sm bg-green-100 px-2 py-1 rounded-full">
+              <div className="flex items-center text-success text-sm bg-success/10 px-2 py-1 rounded-full">
                 <FileCheck className="h-3 w-3 mr-1" />
                 Filed
               </div>
             )}
           </div>
-          <div className={`flex flex-wrap items-center gap-4 text-sm ${
-            expense.filed ? 'text-gray-400' : 'text-gray-600'
-          }`}>
+          <div className={`flex flex-wrap items-center gap-4 text-sm ${expense.filed ? 'text-text-secondary/70' : 'text-text-secondary'}`}>
             <div className="flex items-center">
               <Calendar className="h-4 w-4 mr-1" />
               {formatDate(expense.date)}
@@ -441,60 +358,45 @@ const ViewExpenses: React.FC = () => {
           </div>
         </div>
         
-        {/* Image Preview */}
         {expense.image_url && (
           <div className="flex-shrink-0">
             {imageUrls[expense.id] ? (
               <img
                 src={imageUrls[expense.id]}
                 alt="Receipt"
-                className="w-24 h-24 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity duration-200"
+                className="w-24 h-24 object-cover rounded-lg border border-gray-300/20 cursor-pointer hover:opacity-80 transition-opacity duration-200"
                 onClick={() => window.open(imageUrls[expense.id], '_blank')}
               />
             ) : (
-              <div className="w-24 h-24 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                <Image className="h-8 w-8 text-gray-400" />
+              <div className="w-24 h-24 bg-gray-300/10 rounded-lg border border-gray-300/20 flex items-center justify-center">
+                <Image className="h-8 w-8 text-text-secondary" />
               </div>
             )}
           </div>
         )}
         
         <div className="flex items-center justify-between lg:justify-end gap-4 flex-shrink-0">
-          <div className={`text-xl font-bold ${
-            expense.filed ? 'text-gray-500' : 'text-gray-900'
-          }`}>
+          <div className={`text-xl font-bold ${expense.filed ? 'text-text-secondary' : 'text-text-primary'}`}>
             {formatAmount(expense.amount)}
           </div>
           <div className="flex items-center space-x-2">
             <button
               onClick={() => toggleFiledStatus(expense.id, expense.filed)}
-              className={`p-2 rounded-lg transition-colors duration-200 ${
-                expense.filed 
-                  ? 'text-green-600 hover:bg-green-50' 
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
+              className={`p-2 rounded-lg transition-colors duration-200 ${expense.filed ? 'text-success hover:bg-success/10' : 'text-text-secondary hover:bg-white/10'}`}
               title={expense.filed ? 'Mark as not filed' : 'Mark as filed'}
             >
               {expense.filed ? <FileCheck className="h-4 w-4" /> : <FileX className="h-4 w-4" />}
             </button>
             <button
               onClick={() => setEditingExpense(expense)}
-              className={`p-2 rounded-lg transition-colors duration-200 ${
-                expense.filed 
-                  ? 'text-blue-400 hover:bg-blue-25' 
-                  : 'text-blue-600 hover:bg-blue-50'
-              }`}
+              className={`p-2 rounded-lg transition-colors duration-200 ${expense.filed ? 'text-accent/50 hover:bg-accent/10' : 'text-accent hover:bg-accent/10'}`}
               title="Edit expense"
             >
               <Edit3 className="h-4 w-4" />
             </button>
             <button
               onClick={() => deleteExpense(expense.id)}
-              className={`p-2 rounded-lg transition-colors duration-200 ${
-                expense.filed 
-                  ? 'text-red-400 hover:bg-red-25' 
-                  : 'text-red-600 hover:bg-red-50'
-              }`}
+              className={`p-2 rounded-lg transition-colors duration-200 ${expense.filed ? 'text-error/50 hover:bg-error/10' : 'text-error hover:bg-error/10'}`}
               title="Delete expense"
             >
               <Trash2 className="h-4 w-4" />
@@ -504,128 +406,107 @@ const ViewExpenses: React.FC = () => {
       </div>
     </div>
   );
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Your Expenses</h1>
+            <h1 className="text-3xl font-bold text-text-primary mb-2 tracking-tighter">Your Expenses</h1>
           </div>
           <button
             onClick={() => setShowClaimModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200 flex items-center"
+            className="bg-accent text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity duration-200 flex items-center"
           >
             <Plus className="h-4 w-4 mr-2" />
             New Claim
           </button>
         </div>
-        <p className="text-gray-600">
+        <p className="text-text-secondary">
           View and manage all your recorded expenses organized by claims.
         </p>
       </div>
 
-      {/* Search and Stats */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+      <div className="bg-white/5 rounded-2xl shadow-lg p-6 mb-8 border border-gray-300/10">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-text-secondary" />
             <input
               type="text"
               placeholder="Search expenses..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300/20 bg-white/5 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent transition-colors duration-200"
             />
           </div>
           <div className="flex items-center space-x-6">
             <button
               onClick={downloadExpensesAsZip}
               disabled={exporting || filteredExpenses.length === 0}
-              className="inline-flex items-center bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              className="inline-flex items-center bg-success text-white px-4 py-2 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
             >
-              {exporting ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-              ) : (
-                <Download className="h-4 w-4 mr-2" />
-              )}
+              {exporting ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
               {exporting ? 'Exporting...' : 'Export All'}
             </button>
             <div className="text-center">
-              <p className="text-2xl font-bold text-gray-900">{filteredExpenses.length}</p>
-              <p className="text-sm text-gray-600">Expenses</p>
+              <p className="text-2xl font-bold text-text-primary">{filteredExpenses.length}</p>
+              <p className="text-sm text-text-secondary">Expenses</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600">{formatAmount(totalAmount)}</p>
-              <p className="text-sm text-gray-600">Total Amount</p>
+              <p className="text-2xl font-bold text-accent">{formatAmount(totalAmount)}</p>
+              <p className="text-sm text-text-secondary">Total Amount</p>
             </div>
           </div>
         </div>
       </div>
 
       {filteredExpenses.length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
-          <Receipt className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+        <div className="bg-white/5 rounded-2xl shadow-lg p-12 text-center border border-gray-300/10">
+          <Receipt className="h-16 w-16 text-gray-300/20 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-text-primary mb-2">
             {searchTerm ? 'No expenses found' : 'No expenses yet'}
           </h3>
-          <p className="text-gray-600 mb-6">
-            {searchTerm 
-              ? 'Try adjusting your search terms.' 
-              : 'Start by adding your first expense.'
-            }
+          <p className="text-text-secondary mb-6">
+            {searchTerm ? 'Try adjusting your search terms.' : 'Start by adding your first expense.'}
           </p>
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Claims */}
           {claims.map((claim) => {
             const claimExpenses = getClaimExpenses(claim.id);
+            if (claimExpenses.length === 0 && searchTerm) return null;
             const claimTotal = claimExpenses.reduce((sum, expense) => sum + expense.amount, 0);
             const isExpanded = expandedClaims.has(claim.id);
             
             return (
-              <div key={claim.id} className="bg-white rounded-2xl shadow-lg overflow-hidden">
+              <div key={claim.id} className="bg-white/5 rounded-2xl shadow-lg overflow-hidden border border-gray-300/10">
                 <div 
-                  className="p-6 cursor-pointer hover:bg-gray-50 transition-colors duration-200"
+                  className="p-6 cursor-pointer hover:bg-white/10 transition-colors duration-200"
                   onClick={() => toggleClaimExpansion(claim.id)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      {isExpanded ? (
-                        <ChevronDown className="h-5 w-5 text-gray-400" />
-                      ) : (
-                        <ChevronRight className="h-5 w-5 text-gray-400" />
-                      )}
-                      <FolderOpen className="h-5 w-5 text-blue-600" />
+                      {isExpanded ? <ChevronDown className="h-5 w-5 text-text-secondary" /> : <ChevronRight className="h-5 w-5 text-text-secondary" />}
+                      <FolderOpen className="h-5 w-5 text-accent" />
                       <div>
-                        <h2 className="text-xl font-bold text-gray-900">{claim.title}</h2>
-                        {claim.description && (
-                          <p className="text-gray-600 text-sm">{claim.description}</p>
-                        )}
+                        <h2 className="text-xl font-bold text-text-primary">{claim.title}</h2>
+                        {claim.description && <p className="text-text-secondary text-sm">{claim.description}</p>}
                       </div>
                     </div>
                     <div className="flex items-center space-x-6">
                       <div className="text-center">
-                        <p className="text-lg font-bold text-gray-900">{claimExpenses.length}</p>
-                        <p className="text-xs text-gray-600">Expenses</p>
+                        <p className="text-lg font-bold text-text-primary">{claimExpenses.length}</p>
+                        <p className="text-xs text-text-secondary">Expenses</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-lg font-bold text-blue-600">{formatAmount(claimTotal)}</p>
-                        <p className="text-xs text-gray-600">Total</p>
+                        <p className="text-lg font-bold text-accent">{formatAmount(claimTotal)}</p>
+                        <p className="text-xs text-text-secondary">Total</p>
                       </div>
                       <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => setEditingClaim(claim)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
-                          title="Edit claim"
-                        >
+                        <button onClick={() => setEditingClaim(claim)} className="p-2 text-accent hover:bg-accent/10 rounded-lg transition-colors duration-200" title="Edit claim">
                           <Edit3 className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => deleteClaim(claim.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                          title="Delete claim"
-                        >
+                        <button onClick={() => deleteClaim(claim.id)} className="p-2 text-error hover:bg-error/10 rounded-lg transition-colors duration-200" title="Delete claim">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -634,13 +515,13 @@ const ViewExpenses: React.FC = () => {
                 </div>
                 
                 {isExpanded && claimExpenses.length > 0 && (
-                  <div className="border-t border-gray-100 p-6 pt-4 bg-gray-50 space-y-4">
+                  <div className="border-t border-gray-300/10 p-6 pt-4 bg-black/10 space-y-4">
                     {claimExpenses.map(renderExpenseCard)}
                   </div>
                 )}
                 
                 {isExpanded && claimExpenses.length === 0 && (
-                  <div className="border-t border-gray-100 p-6 pt-4 bg-gray-50 text-center text-gray-500">
+                  <div className="border-t border-gray-300/10 p-6 pt-4 bg-black/10 text-center text-text-secondary">
                     No expenses in this claim yet
                   </div>
                 )}
@@ -648,31 +529,30 @@ const ViewExpenses: React.FC = () => {
             );
           })}
           
-          {/* Unassociated Expenses */}
           {unassociatedExpenses.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-              <div className="p-6 bg-gray-100 border-b border-gray-200">
+            <div className="bg-white/5 rounded-2xl shadow-lg overflow-hidden border border-gray-300/10">
+              <div className="p-6 bg-black/10 border-b border-gray-300/10">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <Receipt className="h-5 w-5 text-gray-600" />
-                    <h2 className="text-xl font-bold text-gray-900">Unassociated Expenses</h2>
+                    <Receipt className="h-5 w-5 text-text-secondary" />
+                    <h2 className="text-xl font-bold text-text-primary">Unassociated Expenses</h2>
                   </div>
                   <div className="flex items-center space-x-6">
                     <div className="text-center">
-                      <p className="text-lg font-bold text-gray-900">{unassociatedExpenses.length}</p>
-                      <p className="text-xs text-gray-600">Expenses</p>
+                      <p className="text-lg font-bold text-text-primary">{unassociatedExpenses.length}</p>
+                      <p className="text-xs text-text-secondary">Expenses</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-lg font-bold text-blue-600">
+                      <p className="text-lg font-bold text-accent">
                         {formatAmount(unassociatedExpenses.reduce((sum, expense) => sum + expense.amount, 0))}
                       </p>
-                      <p className="text-xs text-gray-600">Total</p>
+                      <p className="text-xs text-text-secondary">Total</p>
                     </div>
                   </div>
                 </div>
               </div>
               
-              <div className="p-6 bg-gray-50 space-y-4">
+              <div className="p-6 bg-black/10 space-y-4">
                 {unassociatedExpenses.map(renderExpenseCard)}
               </div>
             </div>

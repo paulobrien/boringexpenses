@@ -65,18 +65,18 @@ const Pricing: React.FC = () => {
   };
 
   return (
-    <section id="pricing" className="py-20 bg-gray-50">
+    <section id="pricing" className="py-24 bg-secondary">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center space-y-4 mb-16">
-          <div className="inline-flex items-center bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium">
+          <div className="inline-flex items-center bg-accent/10 text-accent px-4 py-2 rounded-full text-sm font-medium">
             <Zap className="h-4 w-4 mr-2" />
             Simple Pricing
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+          <h2 className="text-3xl md:text-4xl font-bold text-text-primary tracking-tighter">
             Choose the Perfect Plan for Your Team
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          <p className="text-xl text-text-secondary max-w-3xl mx-auto">
             Start with a 14-day free trial. No credit card required. 
             Scale as your business grows with transparent pricing.
           </p>
@@ -87,15 +87,15 @@ const Pricing: React.FC = () => {
           {plans.map((plan, index) => (
             <div 
               key={index}
-              className={`relative bg-white rounded-2xl shadow-lg border-2 transition-all duration-300 hover:shadow-xl ${
+              className={`relative bg-white/5 rounded-2xl shadow-lg border-2 transition-all duration-300 hover:shadow-xl ${
                 plan.popular 
-                  ? 'border-blue-500 transform scale-105' 
-                  : 'border-gray-200 hover:border-blue-300'
+                  ? 'border-accent/50 transform scale-105'
+                  : 'border-gray-300/10 hover:border-accent/30'
               }`}
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <div className="inline-flex items-center bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-medium">
+                  <div className="inline-flex items-center bg-accent text-white px-4 py-2 rounded-full text-sm font-medium">
                     <Star className="h-4 w-4 mr-1" />
                     Most Popular
                   </div>
@@ -104,16 +104,16 @@ const Pricing: React.FC = () => {
               
               <div className="p-8">
                 <div className="space-y-4 mb-8">
-                  <h3 className="text-2xl font-bold text-gray-900">{plan.name}</h3>
-                  <p className="text-gray-600">{plan.description}</p>
+                  <h3 className="text-2xl font-bold text-text-primary">{plan.name}</h3>
+                  <p className="text-text-secondary">{plan.description}</p>
                   <div className="flex items-baseline">
-                    <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
+                    <span className="text-4xl font-bold text-text-primary">{plan.price}</span>
                     {plan.price !== 'Custom' && (
-                      <span className="text-gray-600 ml-2">/{plan.period.split('/')[1]}</span>
+                      <span className="text-text-secondary ml-2">/{plan.period.split('/')[1]}</span>
                     )}
                   </div>
                   {plan.price !== 'Custom' && (
-                    <p className="text-sm text-gray-500">{plan.period}</p>
+                    <p className="text-sm text-text-secondary">{plan.period}</p>
                   )}
                 </div>
 
@@ -121,20 +121,20 @@ const Pricing: React.FC = () => {
                   onClick={scrollToContact}
                   className={`w-full py-3 px-6 rounded-lg font-semibold transition-colors duration-200 mb-8 ${
                     plan.popular
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                      ? 'bg-accent text-white hover:opacity-90'
+                      : 'bg-white/10 text-text-primary hover:bg-white/20'
                   }`}
                 >
                   {plan.buttonText}
                 </button>
 
                 <div className="space-y-4">
-                  <p className="font-semibold text-gray-900">What's included:</p>
+                  <p className="font-semibold text-text-primary">What's included:</p>
                   <ul className="space-y-3">
                     {plan.features.map((feature, featureIndex) => (
                       <li key={featureIndex} className="flex items-start">
-                        <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5 mr-3" />
-                        <span className="text-gray-700">{feature}</span>
+                        <Check className="h-5 w-5 text-success flex-shrink-0 mt-0.5 mr-3" />
+                        <span className="text-text-secondary">{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -146,7 +146,7 @@ const Pricing: React.FC = () => {
 
         {/* Trust Indicators */}
         <div className="mt-16 text-center">
-          <p className="text-gray-600 mb-8">Trusted by companies of all sizes</p>
+          <p className="text-text-secondary mb-8">Trusted by companies of all sizes</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center opacity-60">
             {['TechCorp', 'InnovateLab', 'GlobalSoft', 'DataSync'].map((company, index) => (
               <div key={index} className="text-2xl font-bold text-gray-400">
@@ -157,16 +157,16 @@ const Pricing: React.FC = () => {
         </div>
 
         {/* FAQ Teaser */}
-        <div className="mt-16 bg-white rounded-2xl p-8 text-center">
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">
+        <div className="mt-16 bg-white/5 rounded-2xl p-8 text-center border border-gray-300/10">
+          <h3 className="text-2xl font-bold text-text-primary mb-4">
             Questions about pricing?
           </h3>
-          <p className="text-gray-600 mb-6">
+          <p className="text-text-secondary mb-6">
             Our team is here to help you choose the right plan for your business needs.
           </p>
           <button
             onClick={scrollToContact}
-            className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors duration-200"
+            className="bg-accent text-white px-8 py-3 rounded-lg font-semibold hover:opacity-90 transition-colors duration-200"
           >
             Talk to Sales
           </button>

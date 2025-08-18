@@ -86,59 +86,105 @@ const AddExpense: React.FC = () => {
     });
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = document.createElement('img');
-        img.onload = () => {
-          const MAX_WIDTH = 1280;
-          const MAX_HEIGHT = 1280;
-          let width = img.width;
-          let height = img.height;
+    if (!file) return;
 
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
-          }
+    try {
+      const MAX_SIDE = 1280;
 
-          const canvas = document.createElement('canvas');
+      // Helper: promisify toBlob
+      const toBlobAsync = (canvas: HTMLCanvasElement, type?: string, quality?: number) =>
+        new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
+
+      // Try to honor EXIF orientation using createImageBitmap when available
+      let sourceWidth: number;
+      let sourceHeight: number;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      if ('createImageBitmap' in window) {
+        try {
+          const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+          sourceWidth = bitmap.width;
+          sourceHeight = bitmap.height;
+          const scale = Math.min(1, MAX_SIDE / Math.max(sourceWidth, sourceHeight));
+          const width = Math.max(1, Math.round(sourceWidth * scale));
+          const height = Math.max(1, Math.round(sourceHeight * scale));
           canvas.width = width;
           canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            // Handle error
-            return;
-          }
-          ctx.drawImage(img, 0, 0, width, height);
+          ctx.drawImage(bitmap, 0, 0, width, height);
+        } catch {
+          // Fallback to Image element route below
+          const dataUrl = await new Promise<string>((resolve) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(fr.result as string);
+            fr.readAsDataURL(file);
+          });
+          await new Promise<void>((resolve) => {
+            const img = document.createElement('img');
+            img.onload = () => {
+              sourceWidth = img.width;
+              sourceHeight = img.height;
+              const scale = Math.min(1, MAX_SIDE / Math.max(sourceWidth, sourceHeight));
+              const width = Math.max(1, Math.round(sourceWidth * scale));
+              const height = Math.max(1, Math.round(sourceHeight * scale));
+              canvas.width = width;
+              canvas.height = height;
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve();
+            };
+            img.src = dataUrl;
+          });
+        }
+      } else {
+        // No createImageBitmap support; use Image element
+        const dataUrl = await new Promise<string>((resolve) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(fr.result as string);
+          fr.readAsDataURL(file);
+        });
+        await new Promise<void>((resolve) => {
+          const img = document.createElement('img');
+          img.onload = () => {
+            sourceWidth = img.width;
+            sourceHeight = img.height;
+            const scale = Math.min(1, MAX_SIDE / Math.max(sourceWidth, sourceHeight));
+            const width = Math.max(1, Math.round(sourceWidth * scale));
+            const height = Math.max(1, Math.round(sourceHeight * scale));
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve();
+          };
+          img.src = dataUrl;
+        });
+      }
 
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                const resizedFile = new File([blob], file.name, {
-                  type: file.type,
-                  lastModified: Date.now(),
-                });
-                setImageFile(resizedFile);
-                setImagePreview(URL.createObjectURL(resizedFile));
-                extractReceiptData(resizedFile);
-              }
-            },
-            file.type,
-            0.95
-          );
-        };
-        img.src = event.target?.result as string;
-      };
-      reader.readAsDataURL(file);
+      // Try encoding with the original type first; if it fails (e.g., HEIC), fall back to JPEG
+      let outType = file.type;
+      let blob = await toBlobAsync(canvas, outType, 0.95);
+      if (!blob) {
+        outType = 'image/jpeg';
+        blob = await toBlobAsync(canvas, outType, 0.95);
+      }
+      if (!blob) return; // give up silently if still unsupported
+
+      const resizedName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+      const resizedFile = new File([blob], resizedName, {
+        type: outType,
+        lastModified: Date.now(),
+      });
+
+      setImageFile(resizedFile);
+      const previewUrl = URL.createObjectURL(resizedFile);
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      setImagePreview(previewUrl);
+      extractReceiptData(resizedFile);
+    } catch (err) {
+      // Swallow errors; image is optional
+      console.error('Image processing failed', err);
     }
   };
 
@@ -193,6 +239,9 @@ const AddExpense: React.FC = () => {
 
   const removeImage = () => {
     setImageFile(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
     setImagePreview(null);
   };
 
@@ -504,7 +553,7 @@ const AddExpense: React.FC = () => {
                 <img
                   src={imagePreview}
                   alt="Receipt preview"
-                  className="w-full h-48 object-cover rounded-lg border border-gray-300"
+                  className="max-w-full max-h-96 object-contain w-full rounded-lg border border-gray-300"
                 />
                 <button
                   type="button"

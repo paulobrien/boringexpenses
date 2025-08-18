@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Save, Check, Building } from 'lucide-react';
+import { User, Save, Check, Building, Camera, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -9,13 +9,26 @@ const Settings: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [profileData, setProfileData] = useState({
     full_name: '',
+    avatar_url: '',
   });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadProfile();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (profile) {
+      setProfileData({
+        full_name: profile.full_name || '',
+        avatar_url: profile.avatar_url || '',
+      });
+    }
+  }, [profile]);
 
   const loadProfile = async () => {
     const isValidSession = await validateSession();
@@ -35,6 +48,7 @@ const Settings: React.FC = () => {
       if (data) {
         setProfileData({
           full_name: data.full_name || '',
+          avatar_url: data.avatar_url || '',
         });
       }
     } catch (error) {
@@ -49,6 +63,18 @@ const Settings: React.FC = () => {
     });
   };
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -57,11 +83,30 @@ const Settings: React.FC = () => {
     setSuccess(false);
 
     try {
+      let avatarUrl = profileData.avatar_url;
+      if (avatarFile) {
+        setUploading(true);
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${user.id}.${fileExt}`;
+        const filePath = `avatars/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('images')
+          .upload(filePath, avatarFile, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage.from('images').getPublicUrl(filePath);
+        avatarUrl = data.publicUrl;
+        setUploading(false);
+      }
+
       const { error } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
           full_name: profileData.full_name,
+          avatar_url: avatarUrl,
           updated_at: new Date().toISOString(),
         });
 
@@ -69,6 +114,7 @@ const Settings: React.FC = () => {
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
+      loadProfile(); // Reload profile to get the latest data
     } catch (error) {
       console.error('Error updating profile:', error);
       alert('Error updating profile. Please try again.');
@@ -133,9 +179,52 @@ const Settings: React.FC = () => {
               />
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Profile Picture
+              </label>
+              <div className="flex items-center space-x-4">
+                <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
+                  ) : profileData.avatar_url ? (
+                    <img src={profileData.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="h-12 w-12 text-gray-400" />
+                  )}
+                </div>
+                <input
+                  type="file"
+                  id="avatar"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="avatar"
+                  className="cursor-pointer bg-white text-gray-700 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors duration-200"
+                >
+                  <Camera className="h-4 w-4 mr-2 inline-block" />
+                  Change Picture
+                </label>
+                {avatarPreview && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvatarFile(null);
+                      setAvatarPreview(null);
+                    }}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || uploading}
               className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
             >
               {loading ? (

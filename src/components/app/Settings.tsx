@@ -13,6 +13,7 @@ const Settings: React.FC = () => {
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarSignedUrl, setAvatarSignedUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
@@ -25,10 +26,34 @@ const Settings: React.FC = () => {
     if (profile) {
       setProfileData({
         full_name: profile.full_name || '',
-        avatar_url: profile.avatar_url || '',
+        avatar_url: (profile as any).avatar_url || '',
       });
     }
   }, [profile]);
+
+  // Resolve a signed URL for stored avatar path when profileData.avatar_url changes
+  useEffect(() => {
+    const resolveSignedUrl = async () => {
+      if (!profileData.avatar_url) {
+        setAvatarSignedUrl(null);
+        return;
+      }
+      try {
+        const { data, error } = await supabase.storage
+          .from('images')
+          .createSignedUrl(profileData.avatar_url, 60 * 60); // 1 hour
+        if (error) throw error;
+        setAvatarSignedUrl(data?.signedUrl || null);
+      } catch (e) {
+        console.error('Error creating signed URL for avatar:', e);
+        setAvatarSignedUrl(null);
+      }
+    };
+    // Only resolve if we're not currently previewing a newly selected file
+    if (!avatarPreview) {
+      resolveSignedUrl();
+    }
+  }, [profileData.avatar_url, avatarPreview]);
 
   const loadProfile = async () => {
     const isValidSession = await validateSession();
@@ -88,7 +113,7 @@ const Settings: React.FC = () => {
         setUploading(true);
         const fileExt = avatarFile.name.split('.').pop();
         const fileName = `${user.id}.${fileExt}`;
-        const filePath = `avatars/${fileName}`;
+        const filePath = `${user.id}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('images')
@@ -96,8 +121,15 @@ const Settings: React.FC = () => {
 
         if (uploadError) throw uploadError;
 
-        const { data } = supabase.storage.from('images').getPublicUrl(filePath);
-        avatarUrl = data.publicUrl;
+        // Store the storage path (not a public URL) for RLS-compatible access
+        avatarUrl = filePath;
+        // Also refresh signed URL for immediate preview after upload
+        try {
+          const { data } = await supabase.storage
+            .from('images')
+            .createSignedUrl(filePath, 60 * 60);
+          setAvatarSignedUrl(data?.signedUrl || null);
+        } catch {}
         setUploading(false);
       }
 
@@ -187,8 +219,8 @@ const Settings: React.FC = () => {
                 <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
                   {avatarPreview ? (
                     <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
-                  ) : profileData.avatar_url ? (
-                    <img src={profileData.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : avatarSignedUrl ? (
+                    <img src={avatarSignedUrl} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
                     <User className="h-12 w-12 text-gray-400" />
                   )}

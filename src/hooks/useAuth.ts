@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 interface UserProfile {
   id: string;
   full_name: string;
+  avatar_url?: string | null;
   company_id: string | null;
   company?: {
     id: string;
@@ -89,10 +90,11 @@ export function useAuth() {
       }
 
       if (data) {
-        const { id, full_name, company_id, company } = data;
+        const { id, full_name, avatar_url, company_id, company } = data;
         setProfile({
           id,
           full_name,
+          avatar_url,
           company_id,
           company: company || undefined,
         });

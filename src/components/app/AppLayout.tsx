@@ -1,11 +1,38 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { Plus, Receipt, Settings, LogOut, Zap, User } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { supabase } from '../../lib/supabase';
 
 const AppLayout: React.FC = () => {
   const { user, profile, signOut } = useAuth();
   const location = useLocation();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadSigned = async () => {
+      if (!profile?.avatar_url) {
+        setAvatarUrl(null);
+        return;
+      }
+      try {
+        // If avatar_url is already an http(s) URL, use it directly (backward compatibility)
+        if (/^https?:\/\//i.test(profile.avatar_url)) {
+          setAvatarUrl(profile.avatar_url);
+          return;
+        }
+        const { data, error } = await supabase.storage
+          .from('images')
+          .createSignedUrl(profile.avatar_url, 60 * 60);
+        if (error) throw error;
+        setAvatarUrl(data?.signedUrl || null);
+      } catch (e) {
+        console.error('Error creating signed URL for sidebar avatar:', e);
+        setAvatarUrl(null);
+      }
+    };
+    loadSigned();
+  }, [profile?.avatar_url]);
 
   const navigation = [
     { name: 'View Expenses', href: '/app', icon: Receipt },
@@ -81,9 +108,9 @@ const AppLayout: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden bg-gray-100">
-                    {profile?.avatar_url ? (
+                    {avatarUrl ? (
                       <img
-                        src={profile.avatar_url}
+                        src={avatarUrl}
                         alt="User avatar"
                         className="w-full h-full object-cover"
                       />

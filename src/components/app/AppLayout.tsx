@@ -122,6 +122,15 @@ const AppLayout: React.FC = () => {
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {profile?.full_name || user?.email}
                     </p>
+                    {profile?.role && (
+                      <p className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        profile.role === 'admin' ? 'bg-red-100 text-red-800' :
+                        profile.role === 'manager' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <button

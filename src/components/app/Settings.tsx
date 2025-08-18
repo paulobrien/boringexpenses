@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, Save, Check, Building } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 
 const Settings: React.FC = () => {
-  const { user, profile, validateSession } = useAuth();
+  const { user, profile, validateSession, loadUserProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -15,9 +15,9 @@ const Settings: React.FC = () => {
     if (user) {
       loadProfile();
     }
-  }, [user]);
+  }, [user, loadProfile]);
 
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     const isValidSession = await validateSession();
     if (!isValidSession || !user) return;
 
@@ -40,7 +40,7 @@ const Settings: React.FC = () => {
     } catch (error) {
       console.error('Error loading profile:', error);
     }
-  };
+  }, [user, validateSession]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setProfileData({
@@ -67,6 +67,12 @@ const Settings: React.FC = () => {
 
       if (error) throw error;
 
+      // Refresh both local and global profile data to reflect the changes
+      await loadProfile();
+      if (user) {
+        await loadUserProfile(user.id);
+      }
+      
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (error) {

@@ -16,11 +16,37 @@ const Settings: React.FC = () => {
   const [avatarSignedUrl, setAvatarSignedUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  const loadProfile = async () => {
+    const isValidSession = await validateSession();
+    if (!isValidSession || !user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (data) {
+        setProfileData({
+          full_name: data.full_name || '',
+          avatar_url: data.avatar_url || '',
+        });
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       loadProfile();
     }
-  }, [user, loadProfile]);
+  }, [user]);
 
   useEffect(() => {
     if (profile) {
@@ -55,31 +81,7 @@ const Settings: React.FC = () => {
     }
   }, [profileData.avatar_url, avatarPreview]);
 
-  const loadProfile = async () => {
-    const isValidSession = await validateSession();
-    if (!isValidSession || !user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      if (data) {
-        setProfileData({
-          full_name: data.full_name || '',
-          avatar_url: data.avatar_url || '',
-        });
-      }
-    } catch (error) {
-      console.error('Error loading profile:', error);
-    }
-  }, [user, validateSession]);
+  
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setProfileData({
@@ -152,7 +154,6 @@ const Settings: React.FC = () => {
       
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-      loadProfile(); // Reload profile to get the latest data
     } catch (error) {
       console.error('Error updating profile:', error);
       alert('Error updating profile. Please try again.');

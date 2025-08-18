@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Plus, Calendar, MapPin, PoundSterling, FileText, Check, Camera, Image, X, FolderOpen } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
@@ -34,15 +34,7 @@ const AddExpense: React.FC = () => {
     amount: '',
   });
 
-  // Load claims on component mount
-  React.useEffect(() => {
-    if (user) {
-      loadClaims();
-      loadCategories();
-    }
-  }, [user]);
-
-  const loadClaims = async () => {
+  const loadClaims = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -57,9 +49,9 @@ const AddExpense: React.FC = () => {
     } catch (error) {
       console.error('Error loading claims:', error);
     }
-  };
+  }, [user]);
 
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     if (!user || !profile?.company_id) {
       setCategories([]);
       return;
@@ -77,7 +69,21 @@ const AddExpense: React.FC = () => {
     } catch (error) {
       console.error('Error loading categories:', error);
     }
-  };
+  }, [user, profile?.company_id]);
+
+  React.useEffect(() => {
+    if (user) {
+      loadClaims();
+    }
+  }, [user, loadClaims]);
+
+  React.useEffect(() => {
+    if (user && profile?.company_id) {
+      loadCategories();
+    } else {
+      setCategories([]);
+    }
+  }, [user, profile?.company_id, loadCategories]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({

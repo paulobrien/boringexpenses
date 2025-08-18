@@ -48,14 +48,14 @@ const Settings: React.FC = () => {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (profile) {
-      setProfileData({
-        full_name: profile.full_name || '',
-        avatar_url: (profile as any).avatar_url || '',
-      });
-    }
-  }, [profile]);
+    useEffect(() => {
+      if (profile) {
+        setProfileData({
+          full_name: profile.full_name || '',
+          avatar_url: profile.avatar_url || '',
+        });
+      }
+    }, [profile]);
 
   // Resolve a signed URL for stored avatar path when profileData.avatar_url changes
   useEffect(() => {
@@ -126,12 +126,14 @@ const Settings: React.FC = () => {
         // Store the storage path (not a public URL) for RLS-compatible access
         avatarUrl = filePath;
         // Also refresh signed URL for immediate preview after upload
-        try {
-          const { data } = await supabase.storage
-            .from('images')
-            .createSignedUrl(filePath, 60 * 60);
-          setAvatarSignedUrl(data?.signedUrl || null);
-        } catch {}
+          try {
+            const { data } = await supabase.storage
+              .from('images')
+              .createSignedUrl(filePath, 60 * 60);
+            setAvatarSignedUrl(data?.signedUrl || null);
+          } catch (error) {
+            console.error('Error creating signed URL after upload:', error);
+          }
         setUploading(false);
       }
 

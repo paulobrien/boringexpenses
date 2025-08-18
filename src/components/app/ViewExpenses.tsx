@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Edit3, Trash2, MapPin, Calendar, PoundSterling, Search, Image, Download, FileCheck, FileX, Plus, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
+import { Receipt, Edit3, Trash2, MapPin, Calendar, Search, Image, Download, FileCheck, FileX, Plus, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import EditExpenseModal from './EditExpenseModal';
@@ -18,7 +18,6 @@ interface Expense {
   image_url: string | null;
   filed: boolean;
   created_at: string;
-  filed: boolean;
 }
 
 interface Claim {
@@ -245,8 +244,8 @@ const ViewExpenses: React.FC = () => {
         'Created At'
       ]);
 
-      // Process each expense
-      filteredExpenses.forEach((expense, index) => {
+        // Process each expense
+        filteredExpenses.forEach(expense => {
         const imageFilename = expense.image_url ? `expense_${expense.id}.jpg` : '';
         const claimTitle = expense.claim_id 
           ? claims.find(c => c.id === expense.claim_id)?.title || 'Unknown Claim'

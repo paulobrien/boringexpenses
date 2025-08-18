@@ -35,6 +35,7 @@ export function useAuth() {
           setProfile(null);
         }
       } catch (error) {
+        console.error('Error fetching initial session:', error);
         setUser(null);
         setProfile(null);
       } finally {
@@ -131,6 +132,7 @@ export function useAuth() {
       
       return !!session;
     } catch (error) {
+      console.error('Error validating session:', error);
       await supabase.auth.signOut();
       setUser(null);
       return false;

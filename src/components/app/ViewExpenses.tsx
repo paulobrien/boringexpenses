@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Receipt, Edit3, Trash2, MapPin, Calendar, PoundSterling, Search, Image, Download, FileCheck, FileX, Plus, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
+import { useOfflineExpenses } from '../../hooks/useOfflineExpenses';
+import { useOffline } from '../../hooks/useOffline';
 import EditExpenseModal from './EditExpenseModal';
 import ClaimModal from './ClaimModal';
 import * as XLSX from 'xlsx';
@@ -35,7 +37,9 @@ interface Category {
 }
 
 const ViewExpenses: React.FC = () => {
-  const { user, profile, validateSession } = useAuth();
+  const { user, profile } = useAuth();
+  const { getExpenses, deleteExpense, isOnline } = useOfflineExpenses();
+  const { db } = useOffline();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -49,12 +53,12 @@ const ViewExpenses: React.FC = () => {
   const [expandedClaims, setExpandedClaims] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (user) {
+    if (user && db) {
       loadExpenses();
       loadClaims();
       loadCategories();
     }
-  }, [user]);
+  }, [user, db]);
 
   const getSignedImageUrl = async (imagePath: string): Promise<string | null> => {
     try {
@@ -75,38 +79,37 @@ const ViewExpenses: React.FC = () => {
     }
   };
   const loadExpenses = async () => {
-    const isValidSession = await validateSession();
-    if (!isValidSession || !user) {
+    if (!user || !db) {
       setLoading(false);
       return;
     }
 
     try {
-      const { data, error } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('date', { ascending: false });
-
-      if (error) throw error;
-      setExpenses(data || []);
+      // Use offline-aware expense loading
+      const expenseData = await getExpenses();
+      setExpenses(expenseData || []);
       
-      // Load signed URLs for images
-      const urlPromises: Record<string, Promise<string | null>> = {};
-      data?.forEach(expense => {
-        if (expense.image_url) {
-          urlPromises[expense.id] = getSignedImageUrl(expense.image_url);
+      // Load signed URLs for images (only if online)
+      if (isOnline) {
+        const urlPromises: Record<string, Promise<string | null>> = {};
+        expenseData?.forEach(expense => {
+          if (expense.image_url && !expense.image_url.startsWith('data:')) {
+            urlPromises[expense.id] = getSignedImageUrl(expense.image_url);
+          } else if (expense.image_url && expense.image_url.startsWith('data:')) {
+            // Handle base64 images stored offline
+            setImageUrls(prev => ({ ...prev, [expense.id]: expense.image_url! }));
+          }
+        });
+        
+        const resolvedUrls: Record<string, string> = {};
+        for (const [expenseId, promise] of Object.entries(urlPromises)) {
+          const url = await promise;
+          if (url) {
+            resolvedUrls[expenseId] = url;
+          }
         }
-      });
-      
-      const resolvedUrls: Record<string, string> = {};
-      for (const [expenseId, promise] of Object.entries(urlPromises)) {
-        const url = await promise;
-        if (url) {
-          resolvedUrls[expenseId] = url;
-        }
+        setImageUrls(prev => ({ ...prev, ...resolvedUrls }));
       }
-      setImageUrls(resolvedUrls);
     } catch (error) {
       console.error('Error loading expenses:', error);
     } finally {
@@ -115,54 +118,86 @@ const ViewExpenses: React.FC = () => {
   };
 
   const loadClaims = async () => {
-    const isValidSession = await validateSession();
-    if (!isValidSession || !user) return;
+    if (!user || !db) return;
 
     try {
-      const { data, error } = await supabase
-        .from('claims')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      // Load from local database first for offline support
+      const localClaims = await db.getAll('claims', 'user_id', user.id);
+      setClaims(localClaims || []);
 
-      if (error) throw error;
-      setClaims(data || []);
+      // If online, also sync with Supabase
+      if (isOnline) {
+        try {
+          const { data, error } = await supabase
+            .from('claims')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+          if (error) throw error;
+          
+          // Update local database with fresh data
+          if (data && data.length > 0) {
+            for (const claim of data) {
+              await db.put('claims', claim);
+            }
+            setClaims(data);
+          }
+        } catch (onlineError) {
+          console.warn('Failed to sync claims from server:', onlineError);
+          // Continue with local data
+        }
+      }
     } catch (error) {
       console.error('Error loading claims:', error);
     }
   };
 
   const loadCategories = async () => {
-    const isValidSession = await validateSession();
-    if (!isValidSession || !user || !profile?.company_id) {
+    if (!user || !profile?.company_id || !db) {
       setCategories([]);
       return;
     }
 
     try {
-      const { data, error } = await supabase
-        .from('expense_categories')
-        .select('*')
-        .eq('company_id', profile.company_id)
-        .order('name', { ascending: true });
+      // Load from local database first
+      const localCategories = await db.getAll('expense_categories', 'company_id', profile.company_id);
+      setCategories(localCategories || []);
 
-      if (error) throw error;
-      setCategories(data || []);
+      // If online, also sync with Supabase
+      if (isOnline) {
+        try {
+          const { data, error } = await supabase
+            .from('expense_categories')
+            .select('*')
+            .eq('company_id', profile.company_id)
+            .order('name', { ascending: true });
+
+          if (error) throw error;
+          
+          // Update local database with fresh data
+          if (data && data.length > 0) {
+            for (const category of data) {
+              await db.put('expense_categories', category);
+            }
+            setCategories(data);
+          }
+        } catch (onlineError) {
+          console.warn('Failed to sync categories from server:', onlineError);
+          // Continue with local data
+        }
+      }
     } catch (error) {
       console.error('Error loading categories:', error);
     }
   };
 
-  const deleteExpense = async (id: string) => {
+  const handleDeleteExpense = async (id: string) => {
     if (!confirm('Are you sure you want to delete this expense?')) return;
 
     try {
-      const { error } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      // Use offline-aware delete function
+      await deleteExpense(id);
       setExpenses(expenses.filter(expense => expense.id !== id));
     } catch (error) {
       console.error('Error deleting expense:', error);
@@ -493,7 +528,7 @@ const ViewExpenses: React.FC = () => {
               <Edit3 className="h-4 w-4" />
             </button>
             <button
-              onClick={() => deleteExpense(expense.id)}
+              onClick={() => handleDeleteExpense(expense.id)}
               className={`p-2 rounded-lg transition-colors duration-200 ${
                 expense.filed 
                   ? 'text-red-400 hover:bg-red-25' 

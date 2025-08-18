@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Save, Calendar, MapPin, PoundSterling, FileText, Camera, Image, FileCheck, FolderOpen } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useOfflineExpenses } from '../../hooks/useOfflineExpenses';
 
 interface Expense {
   id: string;
@@ -41,6 +42,7 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
   onSave,
   initialImagePreviewUrl,
 }) => {
+  const { updateExpense, isOnline } = useOfflineExpenses();
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(
@@ -112,30 +114,39 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
       let imageUrl = expense.image_url;
       if (imageFile) {
         setUploading(true);
-        const uploadedUrl = await uploadImage(imageFile);
-        if (uploadedUrl) {
-          imageUrl = uploadedUrl;
+        
+        if (isOnline) {
+          // Try to upload image immediately if online
+          const uploadedUrl = await uploadImage(imageFile);
+          if (uploadedUrl) {
+            imageUrl = uploadedUrl;
+          }
+        } else {
+          // Store image data locally for later upload
+          const reader = new FileReader();
+          const imageDataUrl = await new Promise<string>((resolve) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(imageFile);
+          });
+          imageUrl = imageDataUrl;
         }
         setUploading(false);
       } else if (imagePreview === null) {
         imageUrl = null;
       }
 
-      const { error } = await supabase
-        .from('expenses')
-        .update({
-          date: formData.date,
-          description: formData.description,
-          location: formData.location,
-          amount: parseFloat(formData.amount),
-          claim_id: claimId || null,
-          category_id: categoryId || null,
-          image_url: imageUrl,
-          filed: filed,
-        })
-        .eq('id', expense.id);
+      // Use offline-aware update function
+      await updateExpense(expense.id, {
+        date: formData.date,
+        description: formData.description,
+        location: formData.location,
+        amount: parseFloat(formData.amount),
+        claim_id: claimId || null,
+        category_id: categoryId || null,
+        image_url: imageUrl,
+        filed: filed,
+      });
 
-      if (error) throw error;
       onSave();
     } catch (error) {
       console.error('Error updating expense:', error);

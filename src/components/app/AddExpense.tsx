@@ -15,7 +15,7 @@ interface Category {
 }
 
 const AddExpense: React.FC = () => {
-  const { user, validateSession } = useAuth();
+  const { user, profile, validateSession } = useAuth();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,12 +60,16 @@ const AddExpense: React.FC = () => {
   };
 
   const loadCategories = async () => {
-    if (!user) return;
+    if (!user || !profile?.company_id) {
+      setCategories([]);
+      return;
+    }
 
     try {
       const { data, error } = await supabase
         .from('expense_categories')
         .select('*')
+        .eq('company_id', profile.company_id)
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -102,6 +106,11 @@ const AddExpense: React.FC = () => {
     setError(null);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('User not authenticated. Cannot extract receipt data.');
+      }
+
       const formData = new FormData();
       formData.append('image', file);
 
@@ -110,7 +119,7 @@ const AddExpense: React.FC = () => {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Authorization': `Bearer ${session.access_token}`,
           },
           body: formData,
         }
@@ -154,15 +163,14 @@ const AddExpense: React.FC = () => {
 
       const { error: uploadError } = await supabase.storage
         .from('images')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage
-        .from('images')
-        .getPublicUrl(filePath);
-
-      return data.publicUrl;
+      return filePath;
     } catch (error) {
       console.error('Error uploading image:', error);
       return null;

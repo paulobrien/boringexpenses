@@ -37,20 +37,11 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
   }, [messages]);
 
   const sendMessage = async () => {
-    console.log('sendMessage called!', { currentMessage, isLoading, session });
+    if (!currentMessage.trim()) return;
     
-    if (!currentMessage.trim()) {
-      console.log('No message to send');
-      return;
-    }
-    
-    if (isLoading) {
-      console.log('Already loading');
-      return;
-    }
+    if (isLoading) return;
     
     if (!session) {
-      console.log('No session, showing demo response');
       // Show a demo response when not authenticated
       const userMessage: ChatMessage = {
         id: Date.now().toString(),

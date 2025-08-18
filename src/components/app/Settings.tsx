@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 
 const Settings: React.FC = () => {
-  const { user, profile, validateSession } = useAuth();
+  const { user, profile, validateSession, loadUserProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -15,6 +15,32 @@ const Settings: React.FC = () => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarSignedUrl, setAvatarSignedUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  const loadProfile = async () => {
+    const isValidSession = await validateSession();
+    if (!isValidSession || !user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (data) {
+        setProfileData({
+          full_name: data.full_name || '',
+          avatar_url: data.avatar_url || '',
+        });
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -55,31 +81,7 @@ const Settings: React.FC = () => {
     }
   }, [profileData.avatar_url, avatarPreview]);
 
-  const loadProfile = async () => {
-    const isValidSession = await validateSession();
-    if (!isValidSession || !user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      if (data) {
-        setProfileData({
-          full_name: data.full_name || '',
-          avatar_url: data.avatar_url || '',
-        });
-      }
-    } catch (error) {
-      console.error('Error loading profile:', error);
-    }
-  };
+  
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setProfileData({
@@ -144,9 +146,14 @@ const Settings: React.FC = () => {
 
       if (error) throw error;
 
+      // Refresh both local and global profile data to reflect the changes
+      await loadProfile();
+      if (user) {
+        await loadUserProfile(user.id);
+      }
+      
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-      loadProfile(); // Reload profile to get the latest data
     } catch (error) {
       console.error('Error updating profile:', error);
       alert('Error updating profile. Please try again.');

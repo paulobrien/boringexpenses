@@ -30,12 +30,22 @@ interface EditExpenseModalProps {
   categories: Category[];
   onClose: () => void;
   onSave: () => void;
+  initialImagePreviewUrl?: string | null;
 }
 
-const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, claims, categories, onClose, onSave }) => {
+const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
+  expense,
+  claims,
+  categories,
+  onClose,
+  onSave,
+  initialImagePreviewUrl,
+}) => {
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(expense.image_url);
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    initialImagePreviewUrl || expense.image_url
+  );
   const [uploading, setUploading] = useState(false);
   const [filed, setFiled] = useState(expense.filed);
   const [claimId, setClaimId] = useState<string>(expense.claim_id || '');
@@ -99,8 +109,7 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, claims, ca
     setLoading(true);
 
     try {
-      // Upload image if new one selected
-      let imageUrl = imagePreview;
+      let imageUrl = expense.image_url;
       if (imageFile) {
         setUploading(true);
         const uploadedUrl = await uploadImage(imageFile);
@@ -108,6 +117,8 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, claims, ca
           imageUrl = uploadedUrl;
         }
         setUploading(false);
+      } else if (imagePreview === null) {
+        imageUrl = null;
       }
 
       const { error } = await supabase

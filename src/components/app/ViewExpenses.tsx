@@ -248,7 +248,7 @@ const ViewExpenses: React.FC = () => {
       ]);
 
       // Process each expense
-      filteredExpenses.forEach((expense, index) => {
+      filteredExpenses.forEach((expense) => {
         const imageFilename = expense.image_url ? `expense_${expense.id}.jpg` : '';
         const claimTitle = expense.claim_id 
           ? claims.find(c => c.id === expense.claim_id)?.title || 'Unknown Claim'

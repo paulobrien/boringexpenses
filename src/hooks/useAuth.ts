@@ -165,6 +165,7 @@ export function useAuth() {
     profile,
     loading,
     validateSession,
+    loadUserProfile,
     signInWithEmail,
     verifyOtp,
     signOut,

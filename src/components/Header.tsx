@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Menu, X, Zap } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user } = useAuth();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
@@ -32,7 +34,7 @@ const Header: React.FC = () => {
               href="/app"
               className="text-gray-700 hover:text-blue-700 transition-colors duration-200"
             >
-              Sign In
+              {user ? 'Dashboard' : 'Sign In / Sign Up'}
             </a>
             <button
               onClick={() => scrollToSection('features')}
@@ -78,7 +80,7 @@ const Header: React.FC = () => {
                 href="/app"
                 className="text-left text-gray-700 hover:text-blue-700 transition-colors duration-200"
               >
-                Sign In
+                {user ? 'Dashboard' : 'Sign In / Sign Up'}
               </a>
               <button
                 onClick={() => scrollToSection('features')}

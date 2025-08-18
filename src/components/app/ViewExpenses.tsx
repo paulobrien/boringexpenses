@@ -35,7 +35,7 @@ interface Category {
 }
 
 const ViewExpenses: React.FC = () => {
-  const { user, validateSession } = useAuth();
+  const { user, profile, validateSession } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -134,12 +134,16 @@ const ViewExpenses: React.FC = () => {
 
   const loadCategories = async () => {
     const isValidSession = await validateSession();
-    if (!isValidSession || !user) return;
+    if (!isValidSession || !user || !profile?.company_id) {
+      setCategories([]);
+      return;
+    }
 
     try {
       const { data, error } = await supabase
         .from('expense_categories')
         .select('*')
+        .eq('company_id', profile.company_id)
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -685,6 +689,7 @@ const ViewExpenses: React.FC = () => {
           expense={editingExpense}
           claims={claims}
           categories={categories}
+          initialImagePreviewUrl={imageUrls[editingExpense.id]}
           onClose={() => setEditingExpense(null)}
           onSave={() => {
             loadExpenses();

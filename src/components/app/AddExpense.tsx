@@ -15,7 +15,7 @@ interface Category {
 }
 
 const AddExpense: React.FC = () => {
-  const { user, validateSession } = useAuth();
+  const { user, profile, validateSession } = useAuth();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,12 +60,16 @@ const AddExpense: React.FC = () => {
   };
 
   const loadCategories = async () => {
-    if (!user) return;
+    if (!user || !profile?.company_id) {
+      setCategories([]);
+      return;
+    }
 
     try {
       const { data, error } = await supabase
         .from('expense_categories')
         .select('*')
+        .eq('company_id', profile.company_id)
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -82,18 +86,105 @@ const AddExpense: React.FC = () => {
     });
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-      
-      // Extract data from receipt using AI
-      extractReceiptData(file);
+    if (!file) return;
+
+    try {
+      const MAX_SIDE = 1280;
+
+      // Helper: promisify toBlob
+      const toBlobAsync = (canvas: HTMLCanvasElement, type?: string, quality?: number) =>
+        new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
+
+      // Try to honor EXIF orientation using createImageBitmap when available
+      let sourceWidth: number;
+      let sourceHeight: number;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      if ('createImageBitmap' in window) {
+        try {
+          const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+          sourceWidth = bitmap.width;
+          sourceHeight = bitmap.height;
+          const scale = Math.min(1, MAX_SIDE / Math.max(sourceWidth, sourceHeight));
+          const width = Math.max(1, Math.round(sourceWidth * scale));
+          const height = Math.max(1, Math.round(sourceHeight * scale));
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(bitmap, 0, 0, width, height);
+        } catch {
+          // Fallback to Image element route below
+          const dataUrl = await new Promise<string>((resolve) => {
+            const fr = new FileReader();
+            fr.onload = () => resolve(fr.result as string);
+            fr.readAsDataURL(file);
+          });
+          await new Promise<void>((resolve) => {
+            const img = document.createElement('img');
+            img.onload = () => {
+              sourceWidth = img.width;
+              sourceHeight = img.height;
+              const scale = Math.min(1, MAX_SIDE / Math.max(sourceWidth, sourceHeight));
+              const width = Math.max(1, Math.round(sourceWidth * scale));
+              const height = Math.max(1, Math.round(sourceHeight * scale));
+              canvas.width = width;
+              canvas.height = height;
+              ctx.drawImage(img, 0, 0, width, height);
+              resolve();
+            };
+            img.src = dataUrl;
+          });
+        }
+      } else {
+        // No createImageBitmap support; use Image element
+        const dataUrl = await new Promise<string>((resolve) => {
+          const fr = new FileReader();
+          fr.onload = () => resolve(fr.result as string);
+          fr.readAsDataURL(file);
+        });
+        await new Promise<void>((resolve) => {
+          const img = document.createElement('img');
+          img.onload = () => {
+            sourceWidth = img.width;
+            sourceHeight = img.height;
+            const scale = Math.min(1, MAX_SIDE / Math.max(sourceWidth, sourceHeight));
+            const width = Math.max(1, Math.round(sourceWidth * scale));
+            const height = Math.max(1, Math.round(sourceHeight * scale));
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve();
+          };
+          img.src = dataUrl;
+        });
+      }
+
+      // Try encoding with the original type first; if it fails (e.g., HEIC), fall back to JPEG
+      let outType = file.type;
+      let blob = await toBlobAsync(canvas, outType, 0.95);
+      if (!blob) {
+        outType = 'image/jpeg';
+        blob = await toBlobAsync(canvas, outType, 0.95);
+      }
+      if (!blob) return; // give up silently if still unsupported
+
+      const resizedName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+      const resizedFile = new File([blob], resizedName, {
+        type: outType,
+        lastModified: Date.now(),
+      });
+
+      setImageFile(resizedFile);
+      const previewUrl = URL.createObjectURL(resizedFile);
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      setImagePreview(previewUrl);
+      extractReceiptData(resizedFile);
+    } catch (err) {
+      // Swallow errors; image is optional
+      console.error('Image processing failed', err);
     }
   };
 
@@ -102,6 +193,11 @@ const AddExpense: React.FC = () => {
     setError(null);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('User not authenticated. Cannot extract receipt data.');
+      }
+
       const formData = new FormData();
       formData.append('image', file);
 
@@ -110,7 +206,7 @@ const AddExpense: React.FC = () => {
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Authorization': `Bearer ${session.access_token}`,
           },
           body: formData,
         }
@@ -143,6 +239,9 @@ const AddExpense: React.FC = () => {
 
   const removeImage = () => {
     setImageFile(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
     setImagePreview(null);
   };
 
@@ -154,15 +253,14 @@ const AddExpense: React.FC = () => {
 
       const { error: uploadError } = await supabase.storage
         .from('images')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
 
       if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage
-        .from('images')
-        .getPublicUrl(filePath);
-
-      return data.publicUrl;
+      return filePath;
     } catch (error) {
       console.error('Error uploading image:', error);
       return null;
@@ -455,7 +553,7 @@ const AddExpense: React.FC = () => {
                 <img
                   src={imagePreview}
                   alt="Receipt preview"
-                  className="w-full h-48 object-cover rounded-lg border border-gray-300"
+                  className="max-w-full max-h-96 object-contain w-full rounded-lg border border-gray-300"
                 />
                 <button
                   type="button"

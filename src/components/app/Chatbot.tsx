@@ -37,7 +37,45 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
   }, [messages]);
 
   const sendMessage = async () => {
-    if (!currentMessage.trim() || isLoading || !session) return;
+    console.log('sendMessage called!', { currentMessage, isLoading, session });
+    
+    if (!currentMessage.trim()) {
+      console.log('No message to send');
+      return;
+    }
+    
+    if (isLoading) {
+      console.log('Already loading');
+      return;
+    }
+    
+    if (!session) {
+      console.log('No session, showing demo response');
+      // Show a demo response when not authenticated
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        type: 'user',
+        message: currentMessage.trim(),
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, userMessage]);
+      setCurrentMessage('');
+      setIsLoading(true);
+
+      // Simulate API delay
+      setTimeout(() => {
+        const botMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          type: 'bot',
+          message: 'This is a demo response. To get real insights about your expenses, please sign in with your account.',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, botMessage]);
+        setIsLoading(false);
+      }, 1000);
+      return;
+    }
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),

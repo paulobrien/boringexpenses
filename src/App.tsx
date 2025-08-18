@@ -26,14 +26,8 @@ function App() {
         <Route path="/" element={<MarketingSite />} />
         
         {/* App routes - protected */}
-        <Route path="/app" element={
-          user ? (
-            <AppLayout />
-          ) : (
-            <LoginForm />
-          )
-        }>
-          <Route index element={<ViewExpenses />} />
+        <Route path="/app" element={<AppLayout />}>
+          <Route index element={user ? <ViewExpenses /> : <LoginForm />} />
           <Route path="add" element={<AddExpense />} />
           <Route path="expenses" element={<ViewExpenses />} />
           <Route path="settings" element={<Settings />} />

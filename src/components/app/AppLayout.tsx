@@ -1,11 +1,38 @@
-import React, { ReactNode } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { Plus, Receipt, Settings, LogOut, Zap } from 'lucide-react';
+import { Plus, Receipt, Settings, LogOut, Zap, User } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { supabase } from '../../lib/supabase';
 
 const AppLayout: React.FC = () => {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const location = useLocation();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadSigned = async () => {
+      if (!profile?.avatar_url) {
+        setAvatarUrl(null);
+        return;
+      }
+      try {
+        // If avatar_url is already an http(s) URL, use it directly (backward compatibility)
+        if (/^https?:\/\//i.test(profile.avatar_url)) {
+          setAvatarUrl(profile.avatar_url);
+          return;
+        }
+        const { data, error } = await supabase.storage
+          .from('images')
+          .createSignedUrl(profile.avatar_url, 60 * 60);
+        if (error) throw error;
+        setAvatarUrl(data?.signedUrl || null);
+      } catch (e) {
+        console.error('Error creating signed URL for sidebar avatar:', e);
+        setAvatarUrl(null);
+      }
+    };
+    loadSigned();
+  }, [profile?.avatar_url]);
 
   const navigation = [
     { name: 'View Expenses', href: '/app', icon: Receipt },
@@ -80,14 +107,20 @@ const AppLayout: React.FC = () => {
             <div className="px-6 py-4 border-t border-gray-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-blue-700 font-semibold text-sm">
-                      {user?.email?.charAt(0).toUpperCase()}
-                    </span>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden bg-gray-100">
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt="User avatar"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="h-5 w-5 text-gray-400" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
-                      {user?.email}
+                      {profile?.full_name || user?.email}
                     </p>
                   </div>
                 </div>
@@ -105,7 +138,7 @@ const AppLayout: React.FC = () => {
 
         {/* Main content */}
         <div className="lg:pl-64 flex-1">
-          <div className="p-4 lg:p-8">
+          <div className="p-4 lg:p-8 pb-20 lg:pb-8">
             <Outlet />
           </div>
         </div>
@@ -113,7 +146,7 @@ const AppLayout: React.FC = () => {
 
       {/* Mobile bottom navigation */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
-        <nav className="flex justify-around py-2">
+        <nav className="flex justify-around py-2 pb-[env(safe-area-inset-bottom)]">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (

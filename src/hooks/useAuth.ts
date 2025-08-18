@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 interface UserProfile {
   id: string;
   full_name: string;
+  avatar_url?: string | null;
   company_id: string | null;
   company?: {
     id: string;
@@ -72,13 +73,15 @@ export function useAuth() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select(`
+        .select(
+          `
           *,
-          companies:company_id (
+          company:companies (
             id,
             name
           )
-        `)
+        `,
+        )
         .eq('id', userId)
         .single();
 
@@ -87,12 +90,13 @@ export function useAuth() {
       }
 
       if (data) {
+        const { id, full_name, avatar_url, company_id, company } = data;
         setProfile({
-          ...data,
-          company: data.companies ? {
-            id: data.companies.id,
-            name: data.companies.name
-          } : undefined
+          id,
+          full_name,
+          avatar_url,
+          company_id,
+          company: company || undefined,
         });
       }
     } catch (error) {

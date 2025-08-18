@@ -120,6 +120,7 @@ export type Database = {
           description: string;
           location: string;
           amount: number;
+          currency: string;
           image_url: string | null;
           created_at: string;
           updated_at: string;
@@ -134,6 +135,7 @@ export type Database = {
           description: string;
           location?: string;
           amount: number;
+          currency?: string;
           image_url?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -148,6 +150,7 @@ export type Database = {
           description?: string;
           location?: string;
           amount?: number;
+          currency?: string;
           image_url?: string | null;
           created_at?: string;
           updated_at?: string;

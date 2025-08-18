@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { X, Save, Calendar, MapPin, PoundSterling, FileText, Camera, Image, FileCheck, FolderOpen } from 'lucide-react';
+import { X, Save, Calendar, MapPin, DollarSign, FileText, Camera, Image, FileCheck, FolderOpen } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { getCurrencyByCode } from '../../lib/currencies';
+import CurrencySelector from '../common/CurrencySelector';
 
 interface Expense {
   id: string;
@@ -10,6 +12,7 @@ interface Expense {
   description: string;
   location: string;
   amount: number;
+  currency: string;
   image_url: string | null;
   filed: boolean;
 }
@@ -50,6 +53,7 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
   const [filed, setFiled] = useState(expense.filed);
   const [claimId, setClaimId] = useState<string>(expense.claim_id || '');
   const [categoryId, setCategoryId] = useState<string>(expense.category_id || '');
+  const [currency, setCurrency] = useState<string>(expense.currency || 'GBP');
   const [formData, setFormData] = useState({
     date: new Date(expense.date).toISOString().slice(0, 16),
     description: expense.description,
@@ -128,6 +132,7 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
           description: formData.description,
           location: formData.location,
           amount: parseFloat(formData.amount),
+          currency: currency,
           claim_id: claimId || null,
           category_id: categoryId || null,
           image_url: imageUrl,
@@ -212,15 +217,22 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
               />
             </div>
 
+            {/* Currency Selection */}
+            <CurrencySelector
+              selectedCurrency={currency}
+              onCurrencyChange={setCurrency}
+              label="Currency"
+            />
+
             {/* Amount */}
             <div>
               <label htmlFor="amount" className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                <PoundSterling className="h-4 w-4 mr-2" />
+                <DollarSign className="h-4 w-4 mr-2" />
                 Amount
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500">£</span>
+                  <span className="text-gray-500">{getCurrencyByCode(currency)?.symbol || currency}</span>
                 </div>
                 <input
                   type="number"

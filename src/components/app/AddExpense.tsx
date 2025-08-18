@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Plus, Calendar, MapPin, PoundSterling, FileText, Check, Camera, Image, X, FolderOpen } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
+import { useOfflineExpenses } from '../../hooks/useOfflineExpenses';
+import { useOffline } from '../../hooks/useOffline';
 
 interface Claim {
   id: string;
@@ -15,7 +17,9 @@ interface Category {
 }
 
 const AddExpense: React.FC = () => {
-  const { user, profile, validateSession } = useAuth();
+  const { user, profile } = useAuth();
+  const { addExpense, loading: offlineLoading, isOnline } = useOfflineExpenses();
+  const { db } = useOffline();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,44 +40,82 @@ const AddExpense: React.FC = () => {
 
   // Load claims on component mount
   React.useEffect(() => {
-    if (user) {
+    if (user && db) {
       loadClaims();
       loadCategories();
     }
-  }, [user]);
+  }, [user, db]);
 
   const loadClaims = async () => {
-    if (!user) return;
+    if (!user || !db) return;
 
     try {
-      const { data, error } = await supabase
-        .from('claims')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      // Load from local database first for offline support
+      const localClaims = await db.getAll('claims', 'user_id', user.id);
+      setClaims(localClaims || []);
 
-      if (error) throw error;
-      setClaims(data || []);
+      // If online, also sync with Supabase
+      if (isOnline) {
+        try {
+          const { data, error } = await supabase
+            .from('claims')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+          if (error) throw error;
+          
+          // Update local database with fresh data
+          if (data && data.length > 0) {
+            for (const claim of data) {
+              await db.put('claims', claim);
+            }
+            setClaims(data);
+          }
+        } catch (onlineError) {
+          console.warn('Failed to sync claims from server:', onlineError);
+          // Continue with local data
+        }
+      }
     } catch (error) {
       console.error('Error loading claims:', error);
     }
   };
 
   const loadCategories = async () => {
-    if (!user || !profile?.company_id) {
+    if (!user || !profile?.company_id || !db) {
       setCategories([]);
       return;
     }
 
     try {
-      const { data, error } = await supabase
-        .from('expense_categories')
-        .select('*')
-        .eq('company_id', profile.company_id)
-        .order('name', { ascending: true });
+      // Load from local database first
+      const localCategories = await db.getAll('expense_categories', 'company_id', profile.company_id);
+      setCategories(localCategories || []);
 
-      if (error) throw error;
-      setCategories(data || []);
+      // If online, also sync with Supabase
+      if (isOnline) {
+        try {
+          const { data, error } = await supabase
+            .from('expense_categories')
+            .select('*')
+            .eq('company_id', profile.company_id)
+            .order('name', { ascending: true });
+
+          if (error) throw error;
+          
+          // Update local database with fresh data
+          if (data && data.length > 0) {
+            for (const category of data) {
+              await db.put('expense_categories', category);
+            }
+            setCategories(data);
+          }
+        } catch (onlineError) {
+          console.warn('Failed to sync categories from server:', onlineError);
+          // Continue with local data
+        }
+      }
     } catch (error) {
       console.error('Error loading categories:', error);
     }
@@ -270,13 +312,6 @@ const AddExpense: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate session before making database calls
-    const isValidSession = await validateSession();
-    if (!isValidSession || !user) {
-      setError('User not authenticated. Please refresh and try again.');
-      return;
-    }
-
     setLoading(true);
     setSuccess(false);
     setError(null);
@@ -290,40 +325,41 @@ const AddExpense: React.FC = () => {
         throw new Error('Amount must be greater than 0');
       }
       
-      const { data, error } = await supabase.from('expenses').insert({
-        user_id: user.id,
+      // Handle image upload for offline scenarios
+      let imageUrl = null;
+      if (imageFile) {
+        setUploading(true);
+        
+        if (isOnline) {
+          // Try to upload image immediately if online
+          const tempId = crypto.randomUUID();
+          imageUrl = await uploadImage(imageFile, tempId);
+        } else {
+          // Store image data locally for later upload
+          const reader = new FileReader();
+          const imageDataUrl = await new Promise<string>((resolve) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(imageFile);
+          });
+          
+          // Store base64 image temporarily (in real app, you'd use IndexedDB or similar)
+          imageUrl = imageDataUrl;
+        }
+        setUploading(false);
+      }
+
+      // Use offline-aware expense creation
+      await addExpense({
+        user_id: user!.id,
         date: formData.date,
         description: formData.description,
         location: formData.location,
         amount: parseFloat(formData.amount),
         claim_id: claimId || null,
         category_id: categoryId || null,
+        image_url: imageUrl,
         filed: false,
-      }).select().single();
-
-      if (error) {
-        throw error;
-      }
-
-      // Upload image if selected
-      let imageUrl = null;
-      if (imageFile && data) {
-        setUploading(true);
-        imageUrl = await uploadImage(imageFile, data.id);
-        
-        if (imageUrl) {
-          // Update expense with image URL
-          const { error: updateError } = await supabase
-            .from('expenses')
-            .update({ image_url: imageUrl })
-            .eq('id', data.id);
-          
-          if (updateError) {
-            console.error('Error updating expense with image:', updateError);
-          }
-        }
-        setUploading(false);
-      }
+      });
 
       setSuccess(true);
       setFormData({
@@ -359,7 +395,16 @@ const AddExpense: React.FC = () => {
       {success && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
           <Check className="h-5 w-5 text-green-600 mr-2" />
-          <span className="text-green-800">Expense added successfully!</span>
+          <div>
+            <span className="text-green-800">
+              Expense added successfully!
+            </span>
+            {!isOnline && (
+              <p className="text-green-700 text-sm mt-1">
+                💾 Saved offline - will sync when connection is restored
+              </p>
+            )}
+          </div>
         </div>
       )}
 

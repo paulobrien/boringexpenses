@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
+import { OfflineProvider } from './hooks/useOffline';
 import LoginForm from './components/auth/LoginForm';
 import AppLayout from './components/app/AppLayout';
 import AddExpense from './components/app/AddExpense';
@@ -20,29 +21,31 @@ function App() {
   }
 
   return (
-    <Router>
-      <Routes>
-        {/* Marketing site */}
-        <Route path="/" element={<MarketingSite />} />
-        
-        {/* App routes - protected */}
-        <Route path="/app" element={
-          user ? (
-            <AppLayout />
-          ) : (
-            <LoginForm />
-          )
-        }>
-          <Route index element={<ViewExpenses />} />
-          <Route path="add" element={<AddExpense />} />
-          <Route path="expenses" element={<ViewExpenses />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
-        
-        {/* Redirect unknown routes */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+    <OfflineProvider>
+      <Router>
+        <Routes>
+          {/* Marketing site */}
+          <Route path="/" element={<MarketingSite />} />
+          
+          {/* App routes - protected */}
+          <Route path="/app" element={
+            user ? (
+              <AppLayout />
+            ) : (
+              <LoginForm />
+            )
+          }>
+            <Route index element={<ViewExpenses />} />
+            <Route path="add" element={<AddExpense />} />
+            <Route path="expenses" element={<ViewExpenses />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
+          
+          {/* Redirect unknown routes */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Router>
+    </OfflineProvider>
   );
 }
 

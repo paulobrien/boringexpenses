@@ -3,6 +3,7 @@ import { Link, useLocation, Outlet } from 'react-router-dom';
 import { Plus, Receipt, Settings, LogOut, Zap, User } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
+import OfflineStatus from '../OfflineStatus';
 
 const AppLayout: React.FC = () => {
   const { user, profile, signOut } = useAuth();
@@ -59,12 +60,15 @@ const AppLayout: React.FC = () => {
             </div>
             <span className="text-lg font-bold text-gray-900">Boring Expenses</span>
           </div>
-          <button
-            onClick={handleSignOut}
-            className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
+          <div className="flex items-center space-x-3">
+            <OfflineStatus />
+            <button
+              onClick={handleSignOut}
+              className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -80,6 +84,11 @@ const AppLayout: React.FC = () => {
                 </div>
                 <span className="text-lg font-bold text-gray-900">Boring Expenses</span>
               </div>
+            </div>
+
+            {/* Offline Status */}
+            <div className="px-6 py-3 border-b border-gray-100">
+              <OfflineStatus />
             </div>
 
             {/* Navigation */}

@@ -43,6 +43,7 @@ export type Database = {
           id: string;
           full_name: string;
           company_id: string | null;
+          role: 'employee' | 'manager' | 'admin';
           created_at: string;
           updated_at: string;
         };
@@ -50,6 +51,7 @@ export type Database = {
           id: string;
           full_name?: string;
           company_id?: string | null;
+          role?: 'employee' | 'manager' | 'admin';
           created_at?: string;
           updated_at?: string;
         };
@@ -57,6 +59,7 @@ export type Database = {
           id?: string;
           full_name?: string;
           company_id?: string | null;
+          role?: 'employee' | 'manager' | 'admin';
           created_at?: string;
           updated_at?: string;
         };

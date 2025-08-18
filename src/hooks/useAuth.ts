@@ -7,6 +7,7 @@ interface UserProfile {
   full_name: string;
   avatar_url?: string | null;
   company_id: string | null;
+  role: 'employee' | 'manager' | 'admin';
   company?: {
     id: string;
     name: string;
@@ -90,12 +91,13 @@ export function useAuth() {
       }
 
       if (data) {
-        const { id, full_name, avatar_url, company_id, company } = data;
+        const { id, full_name, avatar_url, company_id, role, company } = data;
         setProfile({
           id,
           full_name,
           avatar_url,
           company_id,
+          role,
           company: company || undefined,
         });
       }
@@ -160,6 +162,12 @@ export function useAuth() {
     return { error };
   };
 
+  // Helper functions for role-based access control
+  const isAdmin = () => profile?.role === 'admin';
+  const isManager = () => profile?.role === 'manager' || profile?.role === 'admin';
+  const canManageUsers = () => profile?.role === 'admin';
+  const canApproveExpenses = () => profile?.role === 'manager' || profile?.role === 'admin';
+
   return {
     user,
     profile,
@@ -169,5 +177,9 @@ export function useAuth() {
     signInWithEmail,
     verifyOtp,
     signOut,
+    isAdmin,
+    isManager,
+    canManageUsers,
+    canApproveExpenses,
   };
 }

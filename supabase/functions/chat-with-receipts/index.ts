@@ -104,6 +104,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Helper function to format currency as GBP
+    const formatCurrency = (amount: number) => {
+      return new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+      }).format(amount);
+    };
+
     // Format expense data for AI
     const expenseData = expenses?.map(expense => ({
       date: expense.date,
@@ -124,15 +132,15 @@ Deno.serve(async (req: Request) => {
     const latestDate = dates.length > 0 ? new Date(Math.max(...dates.map(d => d.getTime()))) : null;
 
     // Prepare the prompt for Gemini
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
     
     const prompt = `
 You are an AI assistant helping a user analyze their expense data. Answer their question based on the provided expense information.
 
 EXPENSE DATA SUMMARY:
 - Total expenses: ${totalExpenses}
-- Total amount spent: $${totalAmount.toFixed(2)}
-- Average expense: $${avgAmount.toFixed(2)}
+- Total amount spent: ${formatCurrency(totalAmount)}
+- Average expense: ${formatCurrency(avgAmount)}
 - Date range: ${earliestDate ? earliestDate.toDateString() : 'N/A'} to ${latestDate ? latestDate.toDateString() : 'N/A'}
 
 DETAILED EXPENSE DATA:
@@ -147,8 +155,9 @@ INSTRUCTIONS:
 4. If the question asks about categories, group by category or location as appropriate
 5. Be conversational and helpful
 6. If the data doesn't contain enough information to answer the question, say so politely
-7. Format currency amounts with dollar signs and two decimal places
-8. Keep responses concise but informative
+7. Format currency amounts in British Pounds (£) with proper formatting
+8. Handle expenses that have no category (marked as "Uncategorized") appropriately
+9. Keep responses concise but informative
 
 Answer the user's question now:
     `;

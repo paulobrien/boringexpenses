@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Edit3, Trash2, MapPin, Calendar, PoundSterling, Search, Image, Download, FileCheck, FileX, Plus, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
+import { Receipt, Edit3, Trash2, MapPin, Calendar, Search, Image, Download, FileCheck, FileX, Plus, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
+import { formatAmount } from '../../lib/currencies';
 import EditExpenseModal from './EditExpenseModal';
 import ClaimModal from './ClaimModal';
 import * as XLSX from 'xlsx';
@@ -15,10 +16,10 @@ interface Expense {
   description: string;
   location: string;
   amount: number;
+  currency: string;
   image_url: string | null;
   filed: boolean;
   created_at: string;
-  filed: boolean;
 }
 
 interface Claim {
@@ -238,7 +239,8 @@ const ViewExpenses: React.FC = () => {
         'Description', 
         'Category',
         'Location',
-        'Amount (£)',
+        'Amount',
+        'Currency',
         'Claim',
         'Filed',
         'Image Filename',
@@ -246,7 +248,7 @@ const ViewExpenses: React.FC = () => {
       ]);
 
       // Process each expense
-      filteredExpenses.forEach((expense, index) => {
+      filteredExpenses.forEach((expense) => {
         const imageFilename = expense.image_url ? `expense_${expense.id}.jpg` : '';
         const claimTitle = expense.claim_id 
           ? claims.find(c => c.id === expense.claim_id)?.title || 'Unknown Claim'
@@ -259,6 +261,7 @@ const ViewExpenses: React.FC = () => {
           categoryName,
           expense.location || '',
           expense.amount,
+          expense.currency || 'GBP',
           claimTitle,
           expense.filed ? 'Yes' : 'No',
           imageFilename,
@@ -286,6 +289,7 @@ const ViewExpenses: React.FC = () => {
         { wch: 20 }, // Category
         { wch: 25 }, // Location
         { wch: 12 }, // Amount
+        { wch: 10 }, // Currency
         { wch: 20 }, // Claim
         { wch: 8 },  // Filed
         { wch: 25 }, // Image Filename
@@ -377,12 +381,7 @@ const ViewExpenses: React.FC = () => {
     return category ? category.name : 'Unknown Category';
   };
 
-  const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'GBP',
-    }).format(amount);
-  };
+
 
   if (loading) {
     return (
@@ -467,7 +466,7 @@ const ViewExpenses: React.FC = () => {
           <div className={`text-xl font-bold ${
             expense.filed ? 'text-gray-500' : 'text-gray-900'
           }`}>
-            {formatAmount(expense.amount)}
+            {formatAmount(expense.amount, expense.currency)}
           </div>
           <div className="flex items-center space-x-2">
             <button
@@ -559,8 +558,8 @@ const ViewExpenses: React.FC = () => {
               <p className="text-sm text-gray-600">Expenses</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600">{formatAmount(totalAmount)}</p>
-              <p className="text-sm text-gray-600">Total Amount</p>
+              <p className="text-2xl font-bold text-blue-600">{formatAmount(totalAmount, 'GBP')}</p>
+              <p className="text-sm text-gray-600">Total Amount (Mixed Currencies)</p>
             </div>
           </div>
         </div>
@@ -614,8 +613,8 @@ const ViewExpenses: React.FC = () => {
                         <p className="text-xs text-gray-600">Expenses</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-lg font-bold text-blue-600">{formatAmount(claimTotal)}</p>
-                        <p className="text-xs text-gray-600">Total</p>
+                        <p className="text-lg font-bold text-blue-600">{formatAmount(claimTotal, 'GBP')}</p>
+                        <p className="text-xs text-gray-600">Total (Mixed)</p>
                       </div>
                       <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                         <button
@@ -668,9 +667,9 @@ const ViewExpenses: React.FC = () => {
                     </div>
                     <div className="text-center">
                       <p className="text-lg font-bold text-blue-600">
-                        {formatAmount(unassociatedExpenses.reduce((sum, expense) => sum + expense.amount, 0))}
+                        {formatAmount(unassociatedExpenses.reduce((sum, expense) => sum + expense.amount, 0), 'GBP')}
                       </p>
-                      <p className="text-xs text-gray-600">Total</p>
+                      <p className="text-xs text-gray-600">Total (Mixed)</p>
                     </div>
                   </div>
                 </div>

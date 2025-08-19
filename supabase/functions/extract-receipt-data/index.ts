@@ -104,7 +104,7 @@ Deno.serve(async (req: Request) => {
     const mimeType = imageFile.type;
 
     // Prepare the request to Gemini
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`;
     
     const prompt = `
     Analyze this receipt image and extract the following information in JSON format:

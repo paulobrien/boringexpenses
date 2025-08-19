@@ -233,6 +233,14 @@ const AddExpense: React.FC = () => {
           amount: extractedData.amount ? extractedData.amount.toString() : prev.amount,
           date: extractedData.date ? new Date(extractedData.date).toISOString().slice(0, 16) : prev.date,
         }));
+        
+        // Set category if AI provided one
+        if (extractedData.category) {
+          const matchingCategory = categories.find(cat => cat.name === extractedData.category);
+          if (matchingCategory) {
+            setCategoryId(matchingCategory.id);
+          }
+        }
       }
     } catch (error) {
       console.error('Error extracting receipt data:', error);

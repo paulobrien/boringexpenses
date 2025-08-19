@@ -12,6 +12,7 @@ interface ReceiptData {
   date: string;
   amount: number;
   confidence: number;
+  category?: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -40,6 +41,25 @@ Deno.serve(async (req: Request) => {
       );
     }
     // --- AUTHENTICATION END ---
+
+    // Get user's profile to access company_id for categories
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('company_id')
+      .eq('id', user.id)
+      .single();
+
+    // Fetch available categories for the user's company
+    let availableCategories: string[] = [];
+    if (profile?.company_id) {
+      const { data: categories } = await supabaseClient
+        .from('expense_categories')
+        .select('name')
+        .eq('company_id', profile.company_id)
+        .order('name', { ascending: true });
+      
+      availableCategories = categories?.map(cat => cat.name) || [];
+    }
 
     // Only allow POST requests
     if (req.method !== 'POST') {
@@ -113,6 +133,15 @@ Deno.serve(async (req: Request) => {
     - date: The date of the transaction in ISO format (YYYY-MM-DDTHH:MM:SS) - if time is not available, use 12:00:00
     - amount: The total amount as a number (just the numeric value, no currency symbols)
     - confidence: A confidence score from 0 to 1 indicating how confident you are in the extraction
+    - category: The most appropriate expense category from the available options below
+
+    Available expense categories: ${availableCategories.length > 0 ? availableCategories.join(', ') : 'No categories available'}
+
+    For the category field:
+    - Choose the category name that best matches the type of expense shown in the receipt
+    - Only use categories from the available list above
+    - If none of the available categories are a good match, leave this field empty
+    - Base your choice on the business/merchant type and the items purchased
 
     If you cannot extract any field clearly, use reasonable defaults:
     - description: "Expense" 
@@ -120,6 +149,7 @@ Deno.serve(async (req: Request) => {
     - date: current date with 12:00:00 time
     - amount: 0
     - confidence: 0.1
+    - category: ""
 
     Return only valid JSON with no additional text or formatting.
     `;
@@ -179,7 +209,8 @@ Deno.serve(async (req: Request) => {
             location: '',
             date: new Date().toISOString(),
             amount: 0,
-            confidence: 0.1
+            confidence: 0.1,
+            category: ''
           }
         }),
         { 
@@ -206,6 +237,12 @@ Deno.serve(async (req: Request) => {
       extractedData.location = extractedData.location || '';
       extractedData.amount = extractedData.amount || 0;
       extractedData.confidence = extractedData.confidence || 0.5;
+      extractedData.category = extractedData.category || '';
+      
+      // Validate that the category is in the available list (if provided)
+      if (extractedData.category && !availableCategories.includes(extractedData.category)) {
+        extractedData.category = '';
+      }
       
       // Validate date format
       if (extractedData.date) {
@@ -226,7 +263,8 @@ Deno.serve(async (req: Request) => {
         location: '',
         date: new Date().toISOString(),
         amount: 0,
-        confidence: 0.1
+        confidence: 0.1,
+        category: ''
       };
     }
 

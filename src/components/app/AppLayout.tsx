@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { Plus, Receipt, Settings, LogOut, Zap, User } from 'lucide-react';
+import { Plus, Receipt, Settings, LogOut, Zap, User, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
+import Chatbot from './Chatbot';
 
 const AppLayout: React.FC = () => {
   const { user, profile, signOut } = useAuth();
   const location = useLocation();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false);
 
   useEffect(() => {
     const loadSigned = async () => {
@@ -101,6 +103,15 @@ const AppLayout: React.FC = () => {
                   </Link>
                 );
               })}
+              
+              {/* Chatbot Button */}
+              <button
+                onClick={() => setIsChatbotOpen(true)}
+                className="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              >
+                <MessageSquare className="mr-3 h-5 w-5" />
+                Talk to My Receipts
+              </button>
             </nav>
 
             {/* User section */}
@@ -122,6 +133,15 @@ const AppLayout: React.FC = () => {
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {profile?.full_name || user?.email}
                     </p>
+                    {profile?.role && (
+                      <span className={`inline-flex w-fit text-xs px-2 py-0.5 rounded-full font-medium ${
+                        profile.role === 'admin' ? 'bg-red-100 text-red-800' :
+                        profile.role === 'manager' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button
@@ -164,8 +184,20 @@ const AppLayout: React.FC = () => {
               </Link>
             );
           })}
+          
+          {/* Mobile Chatbot Button */}
+          <button
+            onClick={() => setIsChatbotOpen(true)}
+            className="flex flex-col items-center py-2 px-3 text-xs font-medium transition-colors duration-200 text-gray-600 hover:text-gray-900"
+          >
+            <MessageSquare className="h-5 w-5 mb-1 text-gray-400" />
+            Chat
+          </button>
         </nav>
       </div>
+      
+      {/* Chatbot Modal */}
+      <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
     </div>
   );
 };

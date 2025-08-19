@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Calendar, MapPin, PoundSterling, FileText, Check, Camera, Image, X, FolderOpen } from 'lucide-react';
+import { Plus, Calendar, MapPin, DollarSign, FileText, Check, Camera, Image, X, FolderOpen } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
+import { getCurrencyByCode } from '../../lib/currencies';
+import CurrencySelector from '../common/CurrencySelector';
 
 interface Claim {
   id: string;
@@ -27,6 +29,7 @@ const AddExpense: React.FC = () => {
   const [extracting, setExtracting] = useState(false);
   const [claimId, setClaimId] = useState<string>('');
   const [categoryId, setCategoryId] = useState<string>('');
+  const [currency, setCurrency] = useState<string>('GBP');
   const [formData, setFormData] = useState({
     date: new Date().toISOString().slice(0, 16), // YYYY-MM-DDTHH:MM format
     description: '',
@@ -230,6 +233,14 @@ const AddExpense: React.FC = () => {
           amount: extractedData.amount ? extractedData.amount.toString() : prev.amount,
           date: extractedData.date ? new Date(extractedData.date).toISOString().slice(0, 16) : prev.date,
         }));
+        
+        // Set category if AI provided one
+        if (extractedData.category) {
+          const matchingCategory = categories.find(cat => cat.name === extractedData.category);
+          if (matchingCategory) {
+            setCategoryId(matchingCategory.id);
+          }
+        }
       }
     } catch (error) {
       console.error('Error extracting receipt data:', error);
@@ -298,6 +309,7 @@ const AddExpense: React.FC = () => {
         description: formData.description,
         location: formData.location,
         amount: parseFloat(formData.amount),
+        currency: currency,
         claim_id: claimId || null,
         category_id: categoryId || null,
         filed: false,
@@ -334,6 +346,7 @@ const AddExpense: React.FC = () => {
         location: '',
         amount: '',
       });
+      setCurrency('GBP');
       setClaimId('');
       setCategoryId('');
       setImageFile(null);
@@ -373,6 +386,69 @@ const AddExpense: React.FC = () => {
 
       <div className="bg-white rounded-2xl shadow-lg p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Image Upload */}
+          <div>
+            <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+              <Camera className="h-4 w-4 mr-2" />
+              Receipt Image (Optional) {extracting && <span className="text-blue-600 ml-2">- Extracting data...</span>}
+            </label>
+            
+            {!imagePreview ? (
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors duration-200">
+                <div className="space-y-4">
+                  <div className="flex justify-center">
+                    <Image className="h-12 w-12 text-gray-400" />
+                  </div>
+                  <div>
+                    <p className="text-gray-600 mb-2">Add a photo of your receipt</p>
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                      <label className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 inline-flex items-center">
+                        <Camera className="h-4 w-4 mr-2" />
+                        Take Photo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={handleImageSelect}
+                          className="hidden"
+                        />
+                      </label>
+                      <label className="cursor-pointer bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 inline-flex items-center">
+                        <Image className="h-4 w-4 mr-2" />
+                        Choose from Gallery
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageSelect}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="relative">
+                <img
+                  src={imagePreview}
+                  alt="Receipt preview"
+                  className="max-w-full max-h-96 object-contain w-full rounded-lg border border-gray-300"
+                />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full hover:bg-red-700 transition-colors duration-200"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            
+            <p className="text-xs text-gray-500 mt-1">
+              Optional: Attach a photo of your receipt. AI will automatically extract expense details.
+            </p>
+          </div>
+
           {/* Date and Time */}
           <div>
             <label htmlFor="date" className="flex items-center text-sm font-medium text-gray-700 mb-2">
@@ -434,15 +510,22 @@ const AddExpense: React.FC = () => {
             </p>
           </div>
 
+          {/* Currency Selection */}
+          <CurrencySelector
+            selectedCurrency={currency}
+            onCurrencyChange={setCurrency}
+            label="Currency"
+          />
+
           {/* Amount */}
           <div>
             <label htmlFor="amount" className="flex items-center text-sm font-medium text-gray-700 mb-2">
-              <PoundSterling className="h-4 w-4 mr-2" />
+              <DollarSign className="h-4 w-4 mr-2" />
               Cost
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span className="text-gray-500">£</span>
+                <span className="text-gray-500">{getCurrencyByCode(currency)?.symbol || currency}</span>
               </div>
               <input
                 type="number"
@@ -507,68 +590,6 @@ const AddExpense: React.FC = () => {
             </select>
             <p className="text-xs text-gray-500 mt-1">
               Associate this expense with a claim for better organization
-            </p>
-          </div>
-          {/* Image Upload */}
-          <div>
-            <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-              <Camera className="h-4 w-4 mr-2" />
-              Receipt Image (Optional) {extracting && <span className="text-blue-600 ml-2">- Extracting data...</span>}
-            </label>
-            
-            {!imagePreview ? (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors duration-200">
-                <div className="space-y-4">
-                  <div className="flex justify-center">
-                    <Image className="h-12 w-12 text-gray-400" />
-                  </div>
-                  <div>
-                    <p className="text-gray-600 mb-2">Add a photo of your receipt</p>
-                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                      <label className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 inline-flex items-center">
-                        <Camera className="h-4 w-4 mr-2" />
-                        Take Photo
-                        <input
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          onChange={handleImageSelect}
-                          className="hidden"
-                        />
-                      </label>
-                      <label className="cursor-pointer bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 inline-flex items-center">
-                        <Image className="h-4 w-4 mr-2" />
-                        Choose from Gallery
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageSelect}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="relative">
-                <img
-                  src={imagePreview}
-                  alt="Receipt preview"
-                  className="max-w-full max-h-96 object-contain w-full rounded-lg border border-gray-300"
-                />
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full hover:bg-red-700 transition-colors duration-200"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-            
-            <p className="text-xs text-gray-500 mt-1">
-              Optional: Attach a photo of your receipt. AI will automatically extract expense details.
             </p>
           </div>
 

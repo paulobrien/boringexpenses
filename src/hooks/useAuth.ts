@@ -7,6 +7,7 @@ interface UserProfile {
   full_name: string;
   avatar_url?: string | null;
   company_id: string | null;
+  role: 'employee' | 'manager' | 'admin';
   company?: {
     id: string;
     name: string;
@@ -16,6 +17,7 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
     const getInitialSession = async () => {
@@ -24,8 +26,10 @@ export function useAuth() {
         
         if (error) {
           setUser(null);
+          setSession(null);
         } else {
           setUser(session?.user ?? null);
+          setSession(session);
         }
         
         // Load user profile and company info
@@ -37,6 +41,7 @@ export function useAuth() {
       } catch (error) {
         setUser(null);
         setProfile(null);
+        setSession(null);
       } finally {
         setLoading(false);
       }
@@ -49,8 +54,10 @@ export function useAuth() {
       (event, session) => {
         if (event === 'TOKEN_REFRESHED') {
           setUser(session?.user ?? null);
+          setSession(session);
         } else if (event === 'SIGNED_IN') {
           setUser(session?.user ?? null);
+          setSession(session);
           // Create profile asynchronously without blocking
           if (session?.user) {
             loadUserProfile(session.user.id);
@@ -58,10 +65,13 @@ export function useAuth() {
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setProfile(null);
+          setSession(null);
         } else if (event === 'USER_UPDATED') {
           setUser(session?.user ?? null);
+          setSession(session);
         } else {
           setUser(session?.user ?? null);
+          setSession(session);
         }
       }
     );
@@ -90,12 +100,13 @@ export function useAuth() {
       }
 
       if (data) {
-        const { id, full_name, avatar_url, company_id, company } = data;
+        const { id, full_name, avatar_url, company_id, role, company } = data;
         setProfile({
           id,
           full_name,
           avatar_url,
           company_id,
+          role,
           company: company || undefined,
         });
       }
@@ -160,14 +171,25 @@ export function useAuth() {
     return { error };
   };
 
+  // Helper functions for role-based access control
+  const isAdmin = () => profile?.role === 'admin';
+  const isManager = () => profile?.role === 'manager' || profile?.role === 'admin';
+  const canManageUsers = () => profile?.role === 'admin';
+  const canApproveExpenses = () => profile?.role === 'manager' || profile?.role === 'admin';
+
   return {
     user,
     profile,
+    session,
     loading,
     validateSession,
     loadUserProfile,
     signInWithEmail,
     verifyOtp,
     signOut,
+    isAdmin,
+    isManager,
+    canManageUsers,
+    canApproveExpenses,
   };
 }

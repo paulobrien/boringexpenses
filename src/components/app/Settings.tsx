@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { User, Save, Check, Building, Camera, X } from 'lucide-react';
+import { User, Save, Check, Building, Camera, X, Shield } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
+import UserManagement from './UserManagement';
 
 const Settings: React.FC = () => {
-  const { user, profile, validateSession, loadUserProfile } = useAuth();
+  const { user, profile, validateSession, loadUserProfile, canManageUsers } = useAuth();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -52,7 +53,7 @@ const Settings: React.FC = () => {
     if (profile) {
       setProfileData({
         full_name: profile.full_name || '',
-        avatar_url: (profile as any).avatar_url || '',
+        avatar_url: profile.avatar_url || '',
       });
     }
   }, [profile]);
@@ -298,6 +299,19 @@ const Settings: React.FC = () => {
                 {profile?.company?.id || 'N/A'}
               </span>
             </div>
+            <div className="flex justify-between items-center py-3 border-b border-gray-100">
+              <span className="text-gray-600">Your Role</span>
+              <div className="flex items-center">
+                <Shield className="w-4 h-4 mr-2 text-blue-600" />
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  profile?.role === 'admin' ? 'bg-red-100 text-red-800' :
+                  profile?.role === 'manager' ? 'bg-blue-100 text-blue-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {profile?.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : 'Employee'}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
@@ -307,6 +321,13 @@ const Settings: React.FC = () => {
             </p>
           </div>
         </div>
+
+        {/* User Management - Only for Admins */}
+        {canManageUsers() && (
+          <div className="bg-white rounded-2xl shadow-lg p-8">
+            <UserManagement />
+          </div>
+        )}
         {/* Account Information */}
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Account Information</h2>

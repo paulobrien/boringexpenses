@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Send, X, Bot, User, Loader2 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface ChatMessage {
   id: string;
@@ -184,7 +186,30 @@ const Chatbot: React.FC<ChatbotProps> = ({ isOpen, onClose }) => {
                       : 'bg-gray-100 text-gray-900'
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{message.message}</p>
+                  {message.type === 'bot' ? (
+                    <div className="text-sm [&_ul]:list-disc [&_ol]:list-decimal [&_li]:ml-5 [&_p]:my-2 [&_h1]:text-base [&_h2]:text-base [&_h3]:text-sm">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          a: (props: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+                            <a {...props} target="_blank" rel="noopener noreferrer" className="underline text-blue-600" />
+                          ),
+                          table: (props: React.TableHTMLAttributes<HTMLTableElement>) => (
+                            <div className="overflow-x-auto"><table className="table-auto border-collapse" {...props} /></div>
+                          ),
+                          code: ({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) => (
+                            <code className={`${className ?? ''} ${inline ? '' : 'block p-3 rounded bg-gray-200/70'}`} {...props}>
+                              {children}
+                            </code>
+                          ),
+                        }}
+                      >
+                        {message.message}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm whitespace-pre-wrap">{message.message}</p>
+                  )}
                   <p
                     className={`text-xs mt-1 ${
                       message.type === 'user' ? 'text-blue-100' : 'text-gray-500'

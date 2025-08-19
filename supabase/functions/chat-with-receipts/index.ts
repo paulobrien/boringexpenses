@@ -132,7 +132,7 @@ Deno.serve(async (req: Request) => {
     const latestDate = dates.length > 0 ? new Date(Math.max(...dates.map(d => d.getTime()))) : null;
 
     // Prepare the prompt for Gemini
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${geminiApiKey}`;
     
     const prompt = `
 You are an AI assistant helping a user analyze their expense data. Answer their question based on the provided expense information.

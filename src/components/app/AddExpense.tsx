@@ -38,9 +38,11 @@ const AddExpense: React.FC = () => {
   React.useEffect(() => {
     if (user) {
       loadClaims();
+    }
+    if (user && profile?.company_id) {
       loadCategories();
     }
-  }, [user]);
+  }, [user, profile?.company_id]);
 
   const loadClaims = async () => {
     if (!user) return;

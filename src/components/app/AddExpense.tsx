@@ -373,6 +373,69 @@ const AddExpense: React.FC = () => {
 
       <div className="bg-white rounded-2xl shadow-lg p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Image Upload */}
+          <div>
+            <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
+              <Camera className="h-4 w-4 mr-2" />
+              Receipt Image (Optional) {extracting && <span className="text-blue-600 ml-2">- Extracting data...</span>}
+            </label>
+            
+            {!imagePreview ? (
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors duration-200">
+                <div className="space-y-4">
+                  <div className="flex justify-center">
+                    <Image className="h-12 w-12 text-gray-400" />
+                  </div>
+                  <div>
+                    <p className="text-gray-600 mb-2">Add a photo of your receipt</p>
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                      <label className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 inline-flex items-center">
+                        <Camera className="h-4 w-4 mr-2" />
+                        Take Photo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={handleImageSelect}
+                          className="hidden"
+                        />
+                      </label>
+                      <label className="cursor-pointer bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 inline-flex items-center">
+                        <Image className="h-4 w-4 mr-2" />
+                        Choose from Gallery
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageSelect}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="relative">
+                <img
+                  src={imagePreview}
+                  alt="Receipt preview"
+                  className="max-w-full max-h-96 object-contain w-full rounded-lg border border-gray-300"
+                />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full hover:bg-red-700 transition-colors duration-200"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+            
+            <p className="text-xs text-gray-500 mt-1">
+              Optional: Attach a photo of your receipt. AI will automatically extract expense details.
+            </p>
+          </div>
+
           {/* Date and Time */}
           <div>
             <label htmlFor="date" className="flex items-center text-sm font-medium text-gray-700 mb-2">
@@ -507,68 +570,6 @@ const AddExpense: React.FC = () => {
             </select>
             <p className="text-xs text-gray-500 mt-1">
               Associate this expense with a claim for better organization
-            </p>
-          </div>
-          {/* Image Upload */}
-          <div>
-            <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-              <Camera className="h-4 w-4 mr-2" />
-              Receipt Image (Optional) {extracting && <span className="text-blue-600 ml-2">- Extracting data...</span>}
-            </label>
-            
-            {!imagePreview ? (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors duration-200">
-                <div className="space-y-4">
-                  <div className="flex justify-center">
-                    <Image className="h-12 w-12 text-gray-400" />
-                  </div>
-                  <div>
-                    <p className="text-gray-600 mb-2">Add a photo of your receipt</p>
-                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                      <label className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 inline-flex items-center">
-                        <Camera className="h-4 w-4 mr-2" />
-                        Take Photo
-                        <input
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          onChange={handleImageSelect}
-                          className="hidden"
-                        />
-                      </label>
-                      <label className="cursor-pointer bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 inline-flex items-center">
-                        <Image className="h-4 w-4 mr-2" />
-                        Choose from Gallery
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageSelect}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="relative">
-                <img
-                  src={imagePreview}
-                  alt="Receipt preview"
-                  className="max-w-full max-h-96 object-contain w-full rounded-lg border border-gray-300"
-                />
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full hover:bg-red-700 transition-colors duration-200"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-            
-            <p className="text-xs text-gray-500 mt-1">
-              Optional: Attach a photo of your receipt. AI will automatically extract expense details.
             </p>
           </div>
 

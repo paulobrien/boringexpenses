@@ -163,6 +163,41 @@ export type Database = {
           filed?: boolean;
         };
       };
+      invites: {
+        Row: {
+          id: string;
+          email: string;
+          company_id: string;
+          invited_by_user_id: string;
+          role: 'employee' | 'manager' | 'admin';
+          status: 'pending' | 'accepted' | 'revoked';
+          expires_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          company_id: string;
+          invited_by_user_id: string;
+          role?: 'employee' | 'manager' | 'admin';
+          status?: 'pending' | 'accepted' | 'revoked';
+          expires_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          company_id?: string;
+          invited_by_user_id?: string;
+          role?: 'employee' | 'manager' | 'admin';
+          status?: 'pending' | 'accepted' | 'revoked';
+          expires_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
   };
 };

@@ -70,6 +70,7 @@ export type Database = {
           user_id: string;
           title: string;
           description: string;
+          filed: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -78,6 +79,7 @@ export type Database = {
           user_id: string;
           title: string;
           description?: string;
+          filed?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -86,6 +88,7 @@ export type Database = {
           user_id?: string;
           title?: string;
           description?: string;
+          filed?: boolean;
           created_at?: string;
           updated_at?: string;
         };

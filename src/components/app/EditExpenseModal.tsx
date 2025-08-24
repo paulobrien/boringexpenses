@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Save, Calendar, MapPin, DollarSign, FileText, Camera, Image, FileCheck, FolderOpen } from 'lucide-react';
+import { X, Save, Calendar, MapPin, DollarSign, FileText, Camera, Image, FolderOpen } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getCurrencyByCode } from '../../lib/currencies';
 import CurrencySelector from '../common/CurrencySelector';
@@ -14,7 +14,6 @@ interface Expense {
   amount: number;
   currency: string;
   image_url: string | null;
-  filed: boolean;
 }
 
 interface Claim {
@@ -50,7 +49,6 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
     initialImagePreviewUrl || expense.image_url
   );
   const [uploading, setUploading] = useState(false);
-  const [filed, setFiled] = useState(expense.filed);
   const [claimId, setClaimId] = useState<string>(expense.claim_id || '');
   const [categoryId, setCategoryId] = useState<string>(expense.category_id || '');
   const [currency, setCurrency] = useState<string>(expense.currency || 'GBP');
@@ -136,7 +134,6 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
           claim_id: claimId || null,
           category_id: categoryId || null,
           image_url: imageUrl,
-          filed: filed,
         })
         .eq('id', expense.id);
 
@@ -352,39 +349,6 @@ const EditExpenseModal: React.FC<EditExpenseModalProps> = ({
                   </button>
                 </div>
               )}
-            </div>
-
-            {/* Filed Status */}
-            <div>
-              <label className="flex items-center text-sm font-medium text-gray-700 mb-4">
-                <FileCheck className="h-4 w-4 mr-2" />
-                Filing Status
-              </label>
-              <div className="flex items-center space-x-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="filed"
-                    checked={!filed}
-                    onChange={() => setFiled(false)}
-                    className="mr-2 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-gray-700">Not Filed</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="filed"
-                    checked={filed}
-                    onChange={() => setFiled(true)}
-                    className="mr-2 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-gray-700">Filed</span>
-                </label>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Mark expense as filed when processed in your corporate system
-              </p>
             </div>
 
             {/* Buttons */}

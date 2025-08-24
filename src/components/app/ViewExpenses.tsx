@@ -18,7 +18,6 @@ interface Expense {
   amount: number;
   currency: string;
   image_url: string | null;
-  filed: boolean;
   created_at: string;
 }
 
@@ -26,6 +25,7 @@ interface Claim {
   id: string;
   title: string;
   description: string;
+  filed: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -190,22 +190,22 @@ const ViewExpenses: React.FC = () => {
       alert('Error deleting claim. Please try again.');
     }
   };
-  const toggleFiledStatus = async (id: string, currentStatus: boolean) => {
+  const toggleClaimFiledStatus = async (claimId: string, currentStatus: boolean) => {
     try {
       const { error } = await supabase
-        .from('expenses')
+        .from('claims')
         .update({ filed: !currentStatus })
-        .eq('id', id);
+        .eq('id', claimId);
 
       if (error) throw error;
       
       // Update local state
-      setExpenses(expenses.map(expense => 
-        expense.id === id ? { ...expense, filed: !currentStatus } : expense
+      setClaims(claims.map(claim => 
+        claim.id === claimId ? { ...claim, filed: !currentStatus } : claim
       ));
     } catch (error) {
-      console.error('Error updating filed status:', error);
-      alert('Error updating filed status. Please try again.');
+      console.error('Error updating claim filed status:', error);
+      alert('Error updating claim filed status. Please try again.');
     }
   };
 
@@ -242,7 +242,6 @@ const ViewExpenses: React.FC = () => {
         'Amount',
         'Currency',
         'Claim',
-        'Filed',
         'Image Filename',
         'Created At'
       ]);
@@ -263,7 +262,6 @@ const ViewExpenses: React.FC = () => {
           expense.amount,
           expense.currency || 'GBP',
           claimTitle,
-          expense.filed ? 'Yes' : 'No',
           imageFilename,
           new Date(expense.created_at).toLocaleString('en-GB')
         ]);
@@ -291,7 +289,6 @@ const ViewExpenses: React.FC = () => {
         { wch: 12 }, // Amount
         { wch: 10 }, // Currency
         { wch: 20 }, // Claim
-        { wch: 8 },  // Filed
         { wch: 25 }, // Image Filename
         { wch: 20 }  // Created At
       ];
@@ -399,38 +396,20 @@ const ViewExpenses: React.FC = () => {
   }
 
   const renderExpenseCard = (expense: Expense) => (
-    <div key={expense.id} className={`rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 ml-0 ${
-      expense.filed 
-        ? 'bg-gray-50 opacity-60' 
-        : 'bg-white'
-    }`}>
+    <div key={expense.id} className="rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 ml-0 bg-white">
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
         <div className="flex-1 space-y-2 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className={`text-lg font-semibold ${
-              expense.filed ? 'text-gray-500' : 'text-gray-900'
-            }`}>
+            <h3 className="text-lg font-semibold text-gray-900">
               {expense.description}
             </h3>
             {expense.category_id && (
-              <span className={`text-xs px-2 py-1 rounded-full ${
-                expense.filed 
-                  ? 'bg-gray-200 text-gray-500' 
-                  : 'bg-blue-100 text-blue-800'
-              }`}>
+              <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
                 {getCategoryName(expense.category_id)}
               </span>
             )}
-            {expense.filed && (
-              <div className="flex items-center text-green-600 text-sm bg-green-100 px-2 py-1 rounded-full">
-                <FileCheck className="h-3 w-3 mr-1" />
-                Filed
-              </div>
-            )}
           </div>
-          <div className={`flex flex-wrap items-center gap-4 text-sm ${
-            expense.filed ? 'text-gray-400' : 'text-gray-600'
-          }`}>
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
             <div className="flex items-center">
               <Calendar className="h-4 w-4 mr-1" />
               {formatDate(expense.date)}
@@ -463,41 +442,20 @@ const ViewExpenses: React.FC = () => {
         )}
         
         <div className="flex items-center justify-between lg:justify-end gap-4 flex-shrink-0">
-          <div className={`text-xl font-bold ${
-            expense.filed ? 'text-gray-500' : 'text-gray-900'
-          }`}>
+          <div className="text-xl font-bold text-gray-900">
             {formatAmount(expense.amount, expense.currency)}
           </div>
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => toggleFiledStatus(expense.id, expense.filed)}
-              className={`p-2 rounded-lg transition-colors duration-200 ${
-                expense.filed 
-                  ? 'text-green-600 hover:bg-green-50' 
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-              title={expense.filed ? 'Mark as not filed' : 'Mark as filed'}
-            >
-              {expense.filed ? <FileCheck className="h-4 w-4" /> : <FileX className="h-4 w-4" />}
-            </button>
-            <button
               onClick={() => setEditingExpense(expense)}
-              className={`p-2 rounded-lg transition-colors duration-200 ${
-                expense.filed 
-                  ? 'text-blue-400 hover:bg-blue-25' 
-                  : 'text-blue-600 hover:bg-blue-50'
-              }`}
+              className="p-2 rounded-lg transition-colors duration-200 text-blue-600 hover:bg-blue-50"
               title="Edit expense"
             >
               <Edit3 className="h-4 w-4" />
             </button>
             <button
               onClick={() => deleteExpense(expense.id)}
-              className={`p-2 rounded-lg transition-colors duration-200 ${
-                expense.filed 
-                  ? 'text-red-400 hover:bg-red-25' 
-                  : 'text-red-600 hover:bg-red-50'
-              }`}
+              className="p-2 rounded-lg transition-colors duration-200 text-red-600 hover:bg-red-50"
               title="Delete expense"
             >
               <Trash2 className="h-4 w-4" />
@@ -600,8 +558,16 @@ const ViewExpenses: React.FC = () => {
                         <ChevronRight className="h-5 w-5 text-gray-400" />
                       )}
                       <FolderOpen className="h-5 w-5 text-blue-600" />
-                      <div>
-                        <h2 className="text-xl font-bold text-gray-900">{claim.title}</h2>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-xl font-bold text-gray-900">{claim.title}</h2>
+                          {claim.filed && (
+                            <div className="flex items-center text-green-600 text-sm bg-green-100 px-2 py-1 rounded-full">
+                              <FileCheck className="h-3 w-3 mr-1" />
+                              Filed
+                            </div>
+                          )}
+                        </div>
                         {claim.description && (
                           <p className="text-gray-600 text-sm">{claim.description}</p>
                         )}
@@ -617,6 +583,17 @@ const ViewExpenses: React.FC = () => {
                         <p className="text-xs text-gray-600">Total (Mixed)</p>
                       </div>
                       <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => toggleClaimFiledStatus(claim.id, claim.filed)}
+                          className={`p-2 rounded-lg transition-colors duration-200 ${
+                            claim.filed 
+                              ? 'text-green-600 hover:bg-green-50' 
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                          title={claim.filed ? 'Mark claim as not filed' : 'Mark claim as filed'}
+                        >
+                          {claim.filed ? <FileCheck className="h-4 w-4" /> : <FileX className="h-4 w-4" />}
+                        </button>
                         <button
                           onClick={() => setEditingClaim(claim)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"

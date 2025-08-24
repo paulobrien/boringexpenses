@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Edit3, Trash2, MapPin, Calendar, Search, Image, Download, FileCheck, FileX, Plus, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react';
+import { Receipt, Edit3, Trash2, MapPin, Calendar, Search, Image, Download, FileCheck, FileX, Plus, FolderOpen, ChevronDown, ChevronRight, Clock, CheckCircle, XCircle, Filter } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { formatAmount } from '../../lib/currencies';
 import EditExpenseModal from './EditExpenseModal';
 import ClaimModal from './ClaimModal';
+import WorkflowStatusBadge from './WorkflowStatusBadge';
+import ClaimApprovalModal from './ClaimApprovalModal';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
+import type { ClaimStatus } from '../../lib/supabase';
+import { CLAIM_STATUSES, STATUS_LABELS, canEditClaim } from '../../lib/workflow';
 
 interface Expense {
   id: string;
@@ -26,8 +30,15 @@ interface Claim {
   title: string;
   description: string;
   filed: boolean;
+  status: ClaimStatus;
+  approved_by: string | null;
+  approved_at: string | null;
   created_at: string;
   updated_at: string;
+  user?: {
+    id: string;
+    full_name: string;
+  };
 }
 
 interface Category {
@@ -45,9 +56,13 @@ const ViewExpenses: React.FC = () => {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [editingClaim, setEditingClaim] = useState<Claim | null>(null);
   const [showClaimModal, setShowClaimModal] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [approvalClaim, setApprovalClaim] = useState<Claim | null>(null);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [exporting, setExporting] = useState(false);
   const [expandedClaims, setExpandedClaims] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<ClaimStatus[]>(CLAIM_STATUSES);
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -120,11 +135,28 @@ const ViewExpenses: React.FC = () => {
     if (!isValidSession || !user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('claims')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      // Load claims based on user role
+      let query = supabase.from('claims');
+      
+      if (profile?.role === 'admin') {
+        // Admins see all claims in their company
+        query = query.select(`
+          *,
+          user:profiles!user_id(id, full_name)
+        `);
+      } else if (profile?.role === 'manager') {
+        // Managers see their own claims and their team's claims
+        query = query.select(`
+          *,
+          user:profiles!user_id(id, full_name)
+        `);
+        // TODO: Add filter for manager's team members
+      } else {
+        // Employees see only their own claims
+        query = query.select('*').eq('user_id', user.id);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
       setClaims(data || []);
@@ -363,6 +395,12 @@ const ViewExpenses: React.FC = () => {
     expense.location.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredClaims = claims.filter(claim => 
+    statusFilter.includes(claim.status) &&
+    (claim.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     claim.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   const unassociatedExpenses = filteredExpenses.filter(expense => !expense.claim_id);
   const getClaimExpenses = (claimId: string) => 
     filteredExpenses.filter(expense => expense.claim_id === claimId);
@@ -488,16 +526,73 @@ const ViewExpenses: React.FC = () => {
       {/* Search and Stats */}
       <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search expenses..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
-            />
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4 flex-1">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search expenses..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+              />
+            </div>
+            
+            {/* Status Filters */}
+            <div className="relative">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+              >
+                <Filter className="h-4 w-4" />
+                <span>Status Filter</span>
+                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                  {statusFilter.length}
+                </span>
+              </button>
+              
+              {showFilters && (
+                <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[200px]">
+                  <div className="p-4">
+                    <div className="space-y-2">
+                      {CLAIM_STATUSES.map((status) => (
+                        <label key={status} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={statusFilter.includes(status)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setStatusFilter([...statusFilter, status]);
+                              } else {
+                                setStatusFilter(statusFilter.filter(s => s !== status));
+                              }
+                            }}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <WorkflowStatusBadge status={status} size="sm" />
+                        </label>
+                      ))}
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between">
+                      <button
+                        onClick={() => setStatusFilter([])}
+                        className="text-sm text-gray-600 hover:text-gray-800"
+                      >
+                        Clear All
+                      </button>
+                      <button
+                        onClick={() => setStatusFilter(CLAIM_STATUSES)}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        Select All
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
+          
           <div className="flex items-center space-x-6">
             <button
               onClick={downloadExpensesAsZip}
@@ -539,7 +634,7 @@ const ViewExpenses: React.FC = () => {
       ) : (
         <div className="space-y-6">
           {/* Claims */}
-          {claims.map((claim) => {
+          {filteredClaims.map((claim) => {
             const claimExpenses = getClaimExpenses(claim.id);
             const claimTotal = claimExpenses.reduce((sum, expense) => sum + expense.amount, 0);
             const isExpanded = expandedClaims.has(claim.id);
@@ -561,11 +656,11 @@ const ViewExpenses: React.FC = () => {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <h2 className="text-xl font-bold text-gray-900">{claim.title}</h2>
-                          {claim.filed && (
-                            <div className="flex items-center text-green-600 text-sm bg-green-100 px-2 py-1 rounded-full">
-                              <FileCheck className="h-3 w-3 mr-1" />
-                              Filed
-                            </div>
+                          <WorkflowStatusBadge status={claim.status} />
+                          {claim.user && profile?.role !== 'employee' && (
+                            <span className="text-sm text-gray-500">
+                              by {claim.user.full_name}
+                            </span>
                           )}
                         </div>
                         {claim.description && (
@@ -583,31 +678,41 @@ const ViewExpenses: React.FC = () => {
                         <p className="text-xs text-gray-600">Total (Mixed)</p>
                       </div>
                       <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => toggleClaimFiledStatus(claim.id, claim.filed)}
-                          className={`p-2 rounded-lg transition-colors duration-200 ${
-                            claim.filed 
-                              ? 'text-green-600 hover:bg-green-50' 
-                              : 'text-gray-600 hover:bg-gray-50'
-                          }`}
-                          title={claim.filed ? 'Mark claim as not filed' : 'Mark claim as filed'}
-                        >
-                          {claim.filed ? <FileCheck className="h-4 w-4" /> : <FileX className="h-4 w-4" />}
-                        </button>
-                        <button
-                          onClick={() => setEditingClaim(claim)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
-                          title="Edit claim"
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => deleteClaim(claim.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                          title="Delete claim"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {/* Approval button for managers/admins */}
+                        {(profile?.role === 'manager' || profile?.role === 'admin') && claim.status !== 'unfiled' && (
+                          <button
+                            onClick={() => {
+                              setApprovalClaim(claim);
+                              setShowApprovalModal(true);
+                            }}
+                            className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors duration-200"
+                            title="Approve/Change Status"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </button>
+                        )}
+                        
+                        {/* Edit button - only for claim owners or when claim is editable */}
+                        {canEditClaim(claim.status, profile?.role || 'employee', claim.user?.id === profile?.id || !claim.user) && (
+                          <button
+                            onClick={() => setEditingClaim(claim)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                            title="Edit claim"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
+                        )}
+                        
+                        {/* Delete button - only for unfiled claims */}
+                        {claim.status === 'unfiled' && (claim.user?.id === profile?.id || !claim.user || profile?.role === 'admin') && (
+                          <button
+                            onClick={() => deleteClaim(claim.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                            title="Delete claim"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -685,6 +790,21 @@ const ViewExpenses: React.FC = () => {
             loadClaims();
             setShowClaimModal(false);
             setEditingClaim(null);
+          }}
+        />
+      )}
+
+      {showApprovalModal && approvalClaim && (
+        <ClaimApprovalModal
+          claim={approvalClaim}
+          onClose={() => {
+            setShowApprovalModal(false);
+            setApprovalClaim(null);
+          }}
+          onStatusUpdate={() => {
+            loadClaims();
+            setShowApprovalModal(false);
+            setApprovalClaim(null);
           }}
         />
       )}

@@ -15,6 +15,8 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
+export type ClaimStatus = 'unfiled' | 'filed' | 'processing' | 'approved' | 'paid';
+
 export type Database = {
   public: {
     Tables: {
@@ -44,6 +46,7 @@ export type Database = {
           full_name: string;
           company_id: string | null;
           role: 'employee' | 'manager' | 'admin';
+          manager_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -52,6 +55,7 @@ export type Database = {
           full_name?: string;
           company_id?: string | null;
           role?: 'employee' | 'manager' | 'admin';
+          manager_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -60,6 +64,7 @@ export type Database = {
           full_name?: string;
           company_id?: string | null;
           role?: 'employee' | 'manager' | 'admin';
+          manager_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -71,6 +76,9 @@ export type Database = {
           title: string;
           description: string;
           filed: boolean;
+          status: ClaimStatus;
+          approved_by: string | null;
+          approved_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -80,6 +88,9 @@ export type Database = {
           title: string;
           description?: string;
           filed?: boolean;
+          status?: ClaimStatus;
+          approved_by?: string | null;
+          approved_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -89,6 +100,9 @@ export type Database = {
           title?: string;
           description?: string;
           filed?: boolean;
+          status?: ClaimStatus;
+          approved_by?: string | null;
+          approved_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

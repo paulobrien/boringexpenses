@@ -8,9 +8,14 @@ interface UserProfile {
   avatar_url?: string | null;
   company_id: string | null;
   role: 'employee' | 'manager' | 'admin';
+  manager_id: string | null;
   company?: {
     id: string;
     name: string;
+  };
+  manager?: {
+    id: string;
+    full_name: string;
   };
 }
 export function useAuth() {
@@ -89,6 +94,10 @@ export function useAuth() {
           company:companies (
             id,
             name
+          ),
+          manager:profiles!manager_id (
+            id,
+            full_name
           )
         `,
         )
@@ -100,14 +109,16 @@ export function useAuth() {
       }
 
       if (data) {
-        const { id, full_name, avatar_url, company_id, role, company } = data;
+        const { id, full_name, avatar_url, company_id, role, manager_id, company, manager } = data;
         setProfile({
           id,
           full_name,
           avatar_url,
           company_id,
           role,
+          manager_id,
           company: company || undefined,
+          manager: manager || undefined,
         });
       }
     } catch (error) {
@@ -176,6 +187,13 @@ export function useAuth() {
   const isManager = () => profile?.role === 'manager' || profile?.role === 'admin';
   const canManageUsers = () => profile?.role === 'admin';
   const canApproveExpenses = () => profile?.role === 'manager' || profile?.role === 'admin';
+  const canAssignManagers = () => profile?.role === 'admin';
+  const isManagerOf = (userId: string) => {
+    if (!profile || !isManager()) return false;
+    // This would need to be checked against the actual user's manager_id
+    // For now, we'll implement this check in the components
+    return profile.role === 'admin'; // Admins can manage anyone in their company
+  };
 
   return {
     user,
@@ -191,5 +209,7 @@ export function useAuth() {
     isManager,
     canManageUsers,
     canApproveExpenses,
+    canAssignManagers,
+    isManagerOf,
   };
 }

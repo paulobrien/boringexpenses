@@ -7,7 +7,12 @@ interface CompanyUser {
   id: string;
   full_name: string;
   role: 'employee' | 'manager' | 'admin';
+  manager_id: string | null;
   created_at: string;
+  manager?: {
+    id: string;
+    full_name: string;
+  };
 }
 
 const UserManagement: React.FC = () => {
@@ -15,6 +20,7 @@ const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<string | null>(null);
+  const [editingManagerFor, setEditingManagerFor] = useState<string | null>(null);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
 
@@ -24,7 +30,14 @@ const UserManagement: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, role, created_at')
+        .select(`
+          id, 
+          full_name, 
+          role, 
+          manager_id,
+          created_at,
+          manager:profiles!manager_id(id, full_name)
+        `)
         .eq('company_id', profile.company_id)
         .order('created_at', { ascending: true });
 
@@ -60,6 +73,31 @@ const UserManagement: React.FC = () => {
       console.error('Error updating user role:', error);
       alert('Failed to update user role');
     }
+  };
+
+  const updateUserManager = async (userId: string, managerId: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ manager_id: managerId })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      // Reload users to get updated manager information
+      await loadCompanyUsers();
+      setEditingManagerFor(null);
+    } catch (error) {
+      console.error('Error updating user manager:', error);
+      alert('Failed to update user manager');
+    }
+  };
+
+  const getAvailableManagers = (excludeUserId: string) => {
+    return users.filter(u => 
+      u.id !== excludeUserId && 
+      (u.role === 'manager' || u.role === 'admin')
+    );
   };
 
   const inviteUser = async () => {
@@ -168,13 +206,20 @@ const UserManagement: React.FC = () => {
                     <p className="text-sm font-medium text-gray-900">
                       {companyUser.full_name || 'Unnamed User'}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      Joined {new Date(companyUser.created_at).toLocaleDateString()}
-                    </p>
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <p>Joined {new Date(companyUser.created_at).toLocaleDateString()}</p>
+                      {companyUser.manager && (
+                        <p>Manager: {companyUser.manager.full_name}</p>
+                      )}
+                      {!companyUser.manager && companyUser.role === 'employee' && (
+                        <p className="text-amber-600">No manager assigned</p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-2">
+                  {/* Role Management */}
                   {editingUser === companyUser.id ? (
                     <select
                       value={companyUser.role}
@@ -187,20 +232,44 @@ const UserManagement: React.FC = () => {
                       <option value="admin">Admin</option>
                     </select>
                   ) : (
-                    <>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(companyUser.role)}`}>
-                        {companyUser.role.charAt(0).toUpperCase() + companyUser.role.slice(1)}
-                      </span>
-                      {companyUser.id !== user?.id && (
-                        <button
-                          onClick={() => setEditingUser(companyUser.id)}
-                          className="p-1 text-gray-400 hover:text-gray-600"
-                          title="Edit role"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(companyUser.role)}`}>
+                      {companyUser.role.charAt(0).toUpperCase() + companyUser.role.slice(1)}
+                    </span>
+                  )}
+
+                  {/* Manager Assignment */}
+                  {companyUser.role === 'employee' && editingManagerFor === companyUser.id ? (
+                    <select
+                      value={companyUser.manager_id || ''}
+                      onChange={(e) => updateUserManager(companyUser.id, e.target.value || null)}
+                      className="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">No Manager</option>
+                      {getAvailableManagers(companyUser.id).map(manager => (
+                        <option key={manager.id} value={manager.id}>
+                          {manager.full_name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : companyUser.role === 'employee' ? (
+                    <button
+                      onClick={() => setEditingManagerFor(companyUser.id)}
+                      className="px-2 py-1 text-xs text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50"
+                      title="Assign manager"
+                    >
+                      Manager
+                    </button>
+                  ) : null}
+
+                  {/* Edit Role Button */}
+                  {companyUser.id !== user?.id && editingUser !== companyUser.id && (
+                    <button
+                      onClick={() => setEditingUser(companyUser.id)}
+                      className="p-1 text-gray-400 hover:text-gray-600"
+                      title="Edit role"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
                   )}
                 </div>
               </div>

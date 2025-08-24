@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { Plus, Receipt, Settings, LogOut, Zap, User, MessageSquare } from 'lucide-react';
+import { Plus, Receipt, Settings, LogOut, Zap, User, MessageSquare, Users } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import Chatbot from './Chatbot';
 
 const AppLayout: React.FC = () => {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, canManageUsers } = useAuth();
   const location = useLocation();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
@@ -39,6 +39,7 @@ const AppLayout: React.FC = () => {
   const navigation = [
     { name: 'View Expenses', href: '/app', icon: Receipt },
     { name: 'Add Expense', href: '/app/add', icon: Plus },
+    ...(canManageUsers() ? [{ name: 'Manage Users', href: '/app/users', icon: Users }] : []),
     { name: 'Settings', href: '/app/settings', icon: Settings },
   ];
 

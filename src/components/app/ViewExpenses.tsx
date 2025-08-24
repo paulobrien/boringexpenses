@@ -144,13 +144,32 @@ const ViewExpenses: React.FC = () => {
           *,
           user:profiles!user_id(id, full_name)
         `);
+        // Filter by company if available
+        if (profile.company_id) {
+          // We need to join with profiles to filter by company
+          query = query.in('user_id', 
+            supabase.from('profiles')
+              .select('id')
+              .eq('company_id', profile.company_id)
+          );
+        }
       } else if (profile?.role === 'manager') {
         // Managers see their own claims and their team's claims
         query = query.select(`
           *,
           user:profiles!user_id(id, full_name)
         `);
-        // TODO: Add filter for manager's team members
+        
+        // Get team member IDs first
+        const { data: teamMembers } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('manager_id', user.id);
+        
+        const teamMemberIds = teamMembers?.map(member => member.id) || [];
+        const allAccessibleIds = [user.id, ...teamMemberIds];
+        
+        query = query.in('user_id', allAccessibleIds);
       } else {
         // Employees see only their own claims
         query = query.select('*').eq('user_id', user.id);

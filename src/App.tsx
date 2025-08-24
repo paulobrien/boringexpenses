@@ -6,6 +6,7 @@ import AppLayout from './components/app/AppLayout';
 import AddExpense from './components/app/AddExpense';
 import ViewExpenses from './components/app/ViewExpenses';
 import Settings from './components/app/Settings';
+import UserManagement from './components/app/UserManagement';
 import MarketingSite from './components/MarketingSite';
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
           <Route path="add" element={<AddExpense />} />
           <Route path="expenses" element={<ViewExpenses />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="users" element={<UserManagement />} />
         </Route>
         
         {/* Redirect unknown routes */}

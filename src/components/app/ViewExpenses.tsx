@@ -98,10 +98,10 @@ const ViewExpenses: React.FC = () => {
     }
 
     try {
+      // Let RLS policies handle access control
       const { data, error } = await supabase
         .from('expenses')
         .select('*')
-        .eq('user_id', user.id)
         .order('date', { ascending: false });
 
       if (error) throw error;
@@ -135,47 +135,14 @@ const ViewExpenses: React.FC = () => {
     if (!isValidSession || !user) return;
 
     try {
-      // Load claims based on user role
-      let query = supabase.from('claims');
-      
-      if (profile?.role === 'admin') {
-        // Admins see all claims in their company
-        query = query.select(`
+      // Let RLS policies handle access control - no manual filtering needed
+      const { data, error } = await supabase
+        .from('claims')
+        .select(`
           *,
           user:profiles!user_id(id, full_name)
-        `);
-        // Filter by company if available
-        if (profile.company_id) {
-          // We need to join with profiles to filter by company
-          query = query.in('user_id', 
-            supabase.from('profiles')
-              .select('id')
-              .eq('company_id', profile.company_id)
-          );
-        }
-      } else if (profile?.role === 'manager') {
-        // Managers see their own claims and their team's claims
-        query = query.select(`
-          *,
-          user:profiles!user_id(id, full_name)
-        `);
-        
-        // Get team member IDs first
-        const { data: teamMembers } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('manager_id', user.id);
-        
-        const teamMemberIds = teamMembers?.map(member => member.id) || [];
-        const allAccessibleIds = [user.id, ...teamMemberIds];
-        
-        query = query.in('user_id', allAccessibleIds);
-      } else {
-        // Employees see only their own claims
-        query = query.select('*').eq('user_id', user.id);
-      }
-      
-      const { data, error } = await query.order('created_at', { ascending: false });
+        `)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setClaims(data || []);
@@ -241,24 +208,7 @@ const ViewExpenses: React.FC = () => {
       alert('Error deleting claim. Please try again.');
     }
   };
-  const toggleClaimFiledStatus = async (claimId: string, currentStatus: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('claims')
-        .update({ filed: !currentStatus })
-        .eq('id', claimId);
 
-      if (error) throw error;
-      
-      // Update local state
-      setClaims(claims.map(claim => 
-        claim.id === claimId ? { ...claim, filed: !currentStatus } : claim
-      ));
-    } catch (error) {
-      console.error('Error updating claim filed status:', error);
-      alert('Error updating claim filed status. Please try again.');
-    }
-  };
 
   const toggleClaimExpansion = (claimId: string) => {
     const newExpanded = new Set(expandedClaims);

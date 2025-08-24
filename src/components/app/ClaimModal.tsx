@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, FileText, FolderOpen } from 'lucide-react';
+import { X, Save, FileText, FolderOpen, FileCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -7,6 +7,7 @@ interface Claim {
   id: string;
   title: string;
   description: string;
+  filed?: boolean;
 }
 
 interface ClaimModalProps {
@@ -18,6 +19,7 @@ interface ClaimModalProps {
 const ClaimModal: React.FC<ClaimModalProps> = ({ claim, onClose, onSave }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [filed, setFiled] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -29,6 +31,7 @@ const ClaimModal: React.FC<ClaimModalProps> = ({ claim, onClose, onSave }) => {
         title: claim.title,
         description: claim.description,
       });
+      setFiled(claim.filed || false);
     }
   }, [claim]);
 
@@ -53,6 +56,7 @@ const ClaimModal: React.FC<ClaimModalProps> = ({ claim, onClose, onSave }) => {
           .update({
             title: formData.title,
             description: formData.description,
+            filed: filed,
           })
           .eq('id', claim.id);
 
@@ -65,6 +69,7 @@ const ClaimModal: React.FC<ClaimModalProps> = ({ claim, onClose, onSave }) => {
             user_id: user.id,
             title: formData.title,
             description: formData.description,
+            filed: filed,
           });
 
         if (error) throw error;
@@ -135,6 +140,39 @@ const ClaimModal: React.FC<ClaimModalProps> = ({ claim, onClose, onSave }) => {
                 placeholder="Add any additional details about this claim..."
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
               />
+            </div>
+
+            {/* Filed Status */}
+            <div>
+              <label className="flex items-center text-sm font-medium text-gray-700 mb-4">
+                <FileCheck className="h-4 w-4 mr-2" />
+                Filing Status
+              </label>
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="filed"
+                    checked={!filed}
+                    onChange={() => setFiled(false)}
+                    className="mr-2 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700">Not Filed</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="filed"
+                    checked={filed}
+                    onChange={() => setFiled(true)}
+                    className="mr-2 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700">Filed</span>
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Mark claim as filed when submitted to your corporate system
+              </p>
             </div>
 
             {/* Buttons */}

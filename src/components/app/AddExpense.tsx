@@ -312,7 +312,6 @@ const AddExpense: React.FC = () => {
         currency: currency,
         claim_id: claimId || null,
         category_id: categoryId || null,
-        filed: false,
       }).select().single();
 
       if (error) {

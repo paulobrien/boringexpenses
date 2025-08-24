@@ -48,7 +48,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_manager_id ON profiles(manager_id);
 CREATE OR REPLACE FUNCTION validate_claim_status_transition(
   old_status claim_status,
   new_status claim_status,
-  user_role text,
+  user_role user_role,
   is_claim_owner boolean,
   is_manager boolean,
   is_admin boolean

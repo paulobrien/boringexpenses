@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Edit3, Trash2, MapPin, Calendar, Search, Image, Download, FileCheck, FileX, Plus, FolderOpen, ChevronDown, ChevronRight, Clock, CheckCircle, XCircle, Filter } from 'lucide-react';
+import { Receipt, Edit3, Trash2, MapPin, Calendar, Search, Image, Download, Plus, FolderOpen, ChevronDown, ChevronRight, CheckCircle, Filter } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { formatAmount } from '../../lib/currencies';
@@ -10,7 +10,7 @@ import ClaimApprovalModal from './ClaimApprovalModal';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 import type { ClaimStatus } from '../../lib/supabase';
-import { CLAIM_STATUSES, STATUS_LABELS, canEditClaim } from '../../lib/workflow';
+import { CLAIM_STATUSES, canEditClaim } from '../../lib/workflow';
 
 interface Expense {
   id: string;

@@ -22,7 +22,7 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
 
   useEffect(() => {
     const getInitialSession = async () => {
@@ -188,7 +188,7 @@ export function useAuth() {
   const canManageUsers = () => profile?.role === 'admin';
   const canApproveExpenses = () => profile?.role === 'manager' || profile?.role === 'admin';
   const canAssignManagers = () => profile?.role === 'admin';
-  const isManagerOf = (userId: string) => {
+  const isManagerOf = (_userId: string) => {
     if (!profile || !isManager()) return false;
     // This would need to be checked against the actual user's manager_id
     // For now, we'll implement this check in the components

@@ -57,7 +57,7 @@ const ClaimModal: React.FC<ClaimModalProps> = ({ claim, onClose, onSave }) => {
     setLoading(true);
 
     try {
-      const updates: any = {
+      const updates: Record<string, unknown> = {
         title: formData.title,
         description: formData.description,
       };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, UserPlus, Edit3, Shield, User } from 'lucide-react';
+import { Users, UserPlus, Edit3, Shield, User, X, Clock, Mail } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -10,13 +10,27 @@ interface CompanyUser {
   created_at: string;
 }
 
+interface PendingInvite {
+  id: string;
+  email: string;
+  role: 'employee' | 'manager' | 'admin';
+  status: 'pending' | 'accepted' | 'revoked';
+  expires_at: string;
+  created_at: string;
+  invited_by_user_id: string;
+}
+
 const UserManagement: React.FC = () => {
   const { user, profile, canManageUsers } = useAuth();
   const [users, setUsers] = useState<CompanyUser[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'employee' | 'manager' | 'admin'>('employee');
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const loadCompanyUsers = useCallback(async () => {
     if (!user || !profile?.company_id) return;
@@ -32,18 +46,42 @@ const UserManagement: React.FC = () => {
       setUsers(data || []);
     } catch (error) {
       console.error('Error loading company users:', error);
-    } finally {
-      setLoading(false);
+      setError('Failed to load company users');
     }
   }, [user, profile?.company_id]);
 
+  const loadPendingInvites = useCallback(async () => {
+    if (!user || !profile?.company_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('invites')
+        .select('*')
+        .eq('company_id', profile.company_id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPendingInvites(data || []);
+    } catch (error) {
+      console.error('Error loading pending invites:', error);
+      setError('Failed to load pending invites');
+    }
+  }, [user, profile?.company_id]);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    await Promise.all([loadCompanyUsers(), loadPendingInvites()]);
+    setLoading(false);
+  }, [loadCompanyUsers, loadPendingInvites]);
+
   useEffect(() => {
     if (canManageUsers()) {
-      loadCompanyUsers();
+      loadData();
     } else {
       setLoading(false);
     }
-  }, [canManageUsers, loadCompanyUsers]);
+  }, [canManageUsers, loadData]);
 
   const updateUserRole = async (userId: string, newRole: 'employee' | 'manager' | 'admin') => {
     try {
@@ -66,16 +104,55 @@ const UserManagement: React.FC = () => {
     if (!newUserEmail.trim()) return;
 
     setInviteLoading(true);
+    setError(null);
+    setSuccess(null);
+    
     try {
-      // Note: In a real implementation, you would send an invitation email
-      // For now, we'll just show a message
-      alert(`Invitation would be sent to ${newUserEmail}. User will need to sign up and will be automatically added to your company.`);
-      setNewUserEmail('');
+      const { data, error } = await supabase.functions.invoke('send-invite', {
+        body: {
+          email: newUserEmail.trim(),
+          role: newUserRole
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setSuccess(data.message);
+        setNewUserEmail('');
+        setNewUserRole('employee');
+        
+        // Reload data to show updated state
+        if (data.existing_user) {
+          await loadCompanyUsers(); // Existing user was added directly
+        } else {
+          await loadPendingInvites(); // New invite was created
+        }
+      } else {
+        setError(data.message || 'Failed to send invitation');
+      }
     } catch (error) {
       console.error('Error inviting user:', error);
-      alert('Failed to send invitation');
+      setError('Failed to send invitation. Please try again.');
     } finally {
       setInviteLoading(false);
+    }
+  };
+
+  const revokeInvite = async (inviteId: string) => {
+    try {
+      const { error } = await supabase
+        .from('invites')
+        .update({ status: 'revoked', updated_at: new Date().toISOString() })
+        .eq('id', inviteId);
+
+      if (error) throw error;
+
+      setSuccess('Invitation revoked successfully');
+      await loadPendingInvites();
+    } catch (error) {
+      console.error('Error revoking invite:', error);
+      setError('Failed to revoke invitation');
     }
   };
 
@@ -133,28 +210,96 @@ const UserManagement: React.FC = () => {
             <Users className="w-5 h-5 text-blue-600 mr-2" />
             <h3 className="text-lg font-semibold text-gray-900">Company Users</h3>
           </div>
-          <span className="text-sm text-gray-500">{users.length} users</span>
+          <span className="text-sm text-gray-500">
+            {users.length} users {pendingInvites.length > 0 && `• ${pendingInvites.length} pending invites`}
+          </span>
         </div>
 
+        {/* Status Messages */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+        
+        {success && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+            {success}
+          </div>
+        )}
+
         {/* Invite User */}
-        <div className="flex gap-2 mb-4">
-          <input
-            type="email"
-            placeholder="Enter email address to invite"
-            value={newUserEmail}
-            onChange={(e) => setNewUserEmail(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          <button
-            onClick={inviteUser}
-            disabled={inviteLoading || !newUserEmail.trim()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-          >
-            <UserPlus className="w-4 h-4 mr-2" />
-            {inviteLoading ? 'Inviting...' : 'Invite'}
-          </button>
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <input
+              type="email"
+              placeholder="Enter email address to invite"
+              value={newUserEmail}
+              onChange={(e) => setNewUserEmail(e.target.value)}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <select
+              value={newUserRole}
+              onChange={(e) => setNewUserRole(e.target.value as 'employee' | 'manager' | 'admin')}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="employee">Employee</option>
+              <option value="manager">Manager</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button
+              onClick={inviteUser}
+              disabled={inviteLoading || !newUserEmail.trim()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              {inviteLoading ? 'Inviting...' : 'Invite'}
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Pending Invites */}
+      {pendingInvites.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 bg-yellow-50 border-b border-yellow-200">
+            <div className="flex items-center">
+              <Clock className="w-4 h-4 text-yellow-600 mr-2" />
+              <h4 className="text-sm font-medium text-yellow-800">Pending Invitations</h4>
+            </div>
+          </div>
+          <div className="divide-y divide-gray-200">
+            {pendingInvites.map((invite) => (
+              <div key={invite.id} className="p-4 hover:bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Mail className="w-4 h-4 text-gray-400" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{invite.email}</p>
+                      <p className="text-xs text-gray-500">
+                        Invited as {invite.role} • Expires {new Date(invite.expires_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
+                      Pending
+                    </span>
+                    <button
+                      onClick={() => revokeInvite(invite.id)}
+                      className="p-1 text-gray-400 hover:text-red-600"
+                      title="Revoke invitation"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Users List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">

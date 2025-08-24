@@ -13,11 +13,6 @@ const WelcomeBanner: React.FC = () => {
     const checkInviteJoin = async () => {
       if (!profile?.company_id) return;
       
-      // Check if user was created recently (within last hour) and has company_id
-      // This is a heuristic to detect if they likely joined via invite
-      const userCreatedRecently = profile.company && 
-        new Date().getTime() - new Date(profile.company.id).getTime() < 60 * 60 * 1000;
-      
       // Check localStorage to see if we should show the banner
       const hasSeenWelcome = localStorage.getItem(`welcomed_${profile.id}`);
       

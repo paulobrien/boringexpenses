@@ -12,6 +12,7 @@ interface UserProfile {
     id: string;
     name: string;
   };
+  joinedViaInvite?: boolean;
 }
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);

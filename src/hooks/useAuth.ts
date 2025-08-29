@@ -13,11 +13,15 @@ interface UserProfile {
     id: string;
     name: string;
   };
+
   manager?: {
     id: string;
     full_name: string;
   };
+
+  joinedViaInvite?: boolean;
 }
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);

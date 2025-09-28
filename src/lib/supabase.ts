@@ -16,6 +16,8 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 });
 
 export type ClaimStatus = 'unfiled' | 'filed' | 'processing' | 'approved' | 'paid';
+export type PlanType = 'free' | 'pro_monthly' | 'pro_annual';
+export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete';
 
 export type Database = {
   public: {
@@ -47,6 +49,10 @@ export type Database = {
           company_id: string | null;
           role: 'employee' | 'manager' | 'admin';
           manager_id: string | null;
+          plan_type: PlanType;
+          subscription_status: SubscriptionStatus;
+          trial_expiry: string | null;
+          stripe_customer_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -56,6 +62,10 @@ export type Database = {
           company_id?: string | null;
           role?: 'employee' | 'manager' | 'admin';
           manager_id?: string | null;
+          plan_type?: PlanType;
+          subscription_status?: SubscriptionStatus;
+          trial_expiry?: string | null;
+          stripe_customer_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -65,6 +75,10 @@ export type Database = {
           company_id?: string | null;
           role?: 'employee' | 'manager' | 'admin';
           manager_id?: string | null;
+          plan_type?: PlanType;
+          subscription_status?: SubscriptionStatus;
+          trial_expiry?: string | null;
+          stripe_customer_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -208,6 +222,47 @@ export type Database = {
           role?: 'employee' | 'manager' | 'admin';
           status?: 'pending' | 'accepted' | 'revoked';
           expires_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          stripe_customer_id: string;
+          stripe_subscription_id: string;
+          status: SubscriptionStatus;
+          plan_type: PlanType;
+          current_period_start: string;
+          current_period_end: string;
+          cancel_at_period_end: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          stripe_customer_id: string;
+          stripe_subscription_id: string;
+          status: SubscriptionStatus;
+          plan_type: PlanType;
+          current_period_start: string;
+          current_period_end: string;
+          cancel_at_period_end?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          stripe_customer_id?: string;
+          stripe_subscription_id?: string;
+          status?: SubscriptionStatus;
+          plan_type?: PlanType;
+          current_period_start?: string;
+          current_period_end?: string;
+          cancel_at_period_end?: boolean;
           created_at?: string;
           updated_at?: string;
         };

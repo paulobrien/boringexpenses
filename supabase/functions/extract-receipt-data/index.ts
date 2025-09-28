@@ -42,12 +42,51 @@ Deno.serve(async (req: Request) => {
     }
     // --- AUTHENTICATION END ---
 
-    // Get user's profile to access company_id for categories
-    const { data: profile } = await supabaseClient
+    // Check if user has premium access for AI receipt processing
+    const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
-      .select('company_id')
+      .select('company_id, plan_type, subscription_status, trial_expiry')
       .eq('id', user.id)
       .single();
+
+    if (profileError || !profile) {
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch user profile' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // Check premium access for AI processing
+    const hasPremiumAccess = () => {
+      // Premium access for paid plans
+      if (profile.plan_type !== 'free' && profile.subscription_status === 'active') {
+        return true;
+      }
+      // Trial users get premium access
+      if (profile.subscription_status === 'trialing' && 
+          profile.trial_expiry && 
+          new Date(profile.trial_expiry) > new Date()) {
+        return true;
+      }
+      return false;
+    };
+
+    if (!hasPremiumAccess()) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Premium subscription required for AI receipt processing',
+          upgradeRequired: true,
+          message: 'Upgrade to Pro to access advanced AI receipt processing features.'
+        }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
     // Fetch available categories for the user's company
     let availableCategories: string[] = [];

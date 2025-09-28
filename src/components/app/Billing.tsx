@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { 
   CreditCard, 
-  Calendar, 
   CheckCircle, 
   AlertTriangle, 
   Clock,
@@ -9,7 +8,8 @@ import {
   Crown
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { PLAN_CONFIG, getPlanConfig } from '../../lib/stripe';
+import { getPlanConfig } from '../../lib/stripe';
+import { supabase } from '../../lib/supabase';
 
 const Billing: React.FC = () => {
   const { profile, hasActiveSubscription, hasPremiumAccess, isTrialExpired, getTrialDaysRemaining } = useAuth();
@@ -29,7 +29,6 @@ const Billing: React.FC = () => {
   }
 
   const currentPlan = getPlanConfig(profile.plan_type);
-  const isActive = hasActiveSubscription();
   const isPremium = hasPremiumAccess();
   const trialExpired = isTrialExpired();
   const trialDays = getTrialDaysRemaining();
@@ -37,9 +36,25 @@ const Billing: React.FC = () => {
   const handleManageBilling = async () => {
     setLoading(true);
     try {
-      // TODO: Implement Stripe customer portal
-      console.log('Opening Stripe customer portal...');
-      alert('Stripe billing portal will be implemented in the next phase.');
+      if (!profile?.stripe_customer_id) {
+        alert('No billing information found. Please upgrade to a paid plan first.');
+        return;
+      }
+
+      const response = await supabase.functions.invoke('create-portal-session', {
+        body: {
+          returnUrl: `${window.location.origin}/app/billing`
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const { url } = response.data;
+      if (url) {
+        window.location.href = url;
+      }
     } catch (error) {
       console.error('Error opening billing portal:', error);
       alert('Error opening billing portal. Please try again.');
@@ -51,9 +66,30 @@ const Billing: React.FC = () => {
   const handleUpgrade = async (planType: 'pro_monthly' | 'pro_annual') => {
     setLoading(true);
     try {
-      // TODO: Implement Stripe checkout
-      console.log('Upgrading to:', planType);
-      alert(`Stripe checkout for ${planType} will be implemented in the next phase.`);
+      const priceId = planType === 'pro_monthly' 
+        ? import.meta.env.VITE_STRIPE_PRO_MONTHLY_PRICE_ID
+        : import.meta.env.VITE_STRIPE_PRO_ANNUAL_PRICE_ID;
+
+      if (!priceId) {
+        throw new Error('Stripe price ID not configured');
+      }
+
+      const response = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          priceId,
+          successUrl: `${window.location.origin}/app/billing?success=true`,
+          cancelUrl: `${window.location.origin}/app/billing?canceled=true`
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const { url } = response.data;
+      if (url) {
+        window.location.href = url;
+      }
     } catch (error) {
       console.error('Error upgrading plan:', error);
       alert('Error starting upgrade process. Please try again.');

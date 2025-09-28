@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import Chatbot from './Chatbot';
 import WelcomeBanner from './WelcomeBanner';
+import SubscriptionBanner from './SubscriptionBanner';
 
 const AppLayout: React.FC = () => {
   const { user, profile, signOut, canManageUsers } = useAuth();
@@ -162,6 +163,7 @@ const AppLayout: React.FC = () => {
         {/* Main content */}
         <div className="lg:pl-64 flex-1">
           <div className="p-4 lg:p-8 pb-20 lg:pb-8">
+            <SubscriptionBanner />
             <WelcomeBanner />
             <Outlet />
           </div>

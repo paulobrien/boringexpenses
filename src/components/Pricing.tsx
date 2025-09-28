@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, Star, Zap } from 'lucide-react';
 import { PLAN_CONFIG } from '../lib/stripe';
 import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
 
 const Pricing: React.FC = () => {
   const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
 
   const plans = [
     {
@@ -44,10 +46,37 @@ const Pricing: React.FC = () => {
       return;
     }
 
-    // For now, just scroll to contact. We'll implement actual Stripe checkout in the next phase
-    const element = document.getElementById('contact');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+    setLoading(true);
+    try {
+      const priceId = planId === 'pro_monthly' 
+        ? import.meta.env.VITE_STRIPE_PRO_MONTHLY_PRICE_ID
+        : import.meta.env.VITE_STRIPE_PRO_ANNUAL_PRICE_ID;
+
+      if (!priceId) {
+        throw new Error('Stripe price ID not configured');
+      }
+
+      const response = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          priceId,
+          successUrl: `${window.location.origin}/app/billing?success=true`,
+          cancelUrl: `${window.location.origin}/?canceled=true`
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const { url } = response.data;
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error) {
+      console.error('Error upgrading plan:', error);
+      alert('Error starting upgrade process. Please try again or contact support.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -118,14 +147,14 @@ const Pricing: React.FC = () => {
 
                 <button
                   onClick={() => handleUpgrade(plan.id)}
-                  disabled={plan.id === 'free' && user} // Disable free plan button for logged-in users
+                  disabled={plan.id === 'free' && user || loading} // Disable free plan button for logged-in users
                   className={`w-full py-3 px-6 rounded-lg font-semibold transition-colors duration-200 mb-8 ${
                     plan.popular
                       ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300'
                       : 'bg-gray-100 text-gray-900 hover:bg-gray-200 disabled:bg-gray-200 disabled:text-gray-500'
                   } disabled:cursor-not-allowed`}
                 >
-                  {plan.id === 'free' && user ? 'Current Plan' : plan.buttonText}
+                  {loading && plan.id !== 'free' ? 'Loading...' : (plan.id === 'free' && user ? 'Current Plan' : plan.buttonText)}
                 </button>
 
                 <div className="space-y-4">

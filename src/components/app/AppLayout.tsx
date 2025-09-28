@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { Plus, Receipt, Settings, LogOut, Zap, User, MessageSquare, Users } from 'lucide-react';
+import { Plus, Receipt, Settings, LogOut, Zap, User, MessageSquare, Users, CreditCard } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../lib/supabase';
 import Chatbot from './Chatbot';
@@ -41,6 +41,7 @@ const AppLayout: React.FC = () => {
     { name: 'View Expenses', href: '/app', icon: Receipt },
     { name: 'Add Expense', href: '/app/add', icon: Plus },
     ...(canManageUsers() ? [{ name: 'Manage Users', href: '/app/users', icon: Users }] : []),
+    { name: 'Billing', href: '/app/billing', icon: CreditCard },
     { name: 'Settings', href: '/app/settings', icon: Settings },
   ];
 

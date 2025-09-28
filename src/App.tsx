@@ -7,6 +7,7 @@ import AddExpense from './components/app/AddExpense';
 import ViewExpenses from './components/app/ViewExpenses';
 import Settings from './components/app/Settings';
 import UserManagement from './components/app/UserManagement';
+import Billing from './components/app/Billing';
 import MarketingSite from './components/MarketingSite';
 
 function App() {
@@ -39,6 +40,7 @@ function App() {
           <Route path="expenses" element={<ViewExpenses />} />
           <Route path="settings" element={<Settings />} />
           <Route path="users" element={<UserManagement />} />
+          <Route path="billing" element={<Billing />} />
         </Route>
         
         {/* Redirect unknown routes */}

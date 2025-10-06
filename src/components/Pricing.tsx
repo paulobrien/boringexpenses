@@ -1,61 +1,84 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, Star, Zap } from 'lucide-react';
+import { PLAN_CONFIG } from '../lib/stripe';
+import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
 
 const Pricing: React.FC = () => {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+
   const plans = [
     {
-      name: 'Starter',
-      description: 'Perfect for small teams and startups',
-      price: '$12',
-      period: 'per user/month',
-      features: [
-        'Up to 50 expenses per month',
-        'Basic AI receipt processing',
-        'Email support',
-        '2 approval workflows',
-        'Standard reporting',
-        'Mobile app access'
-      ],
-      buttonText: 'Start Free Trial',
-      popular: false
+      id: 'free' as const,
+      ...PLAN_CONFIG.free,
+      buttonText: 'Current Plan',
+      popular: false,
+      price: 'Free',
+      period: 'forever'
     },
     {
-      name: 'Professional',
-      description: 'Ideal for growing companies',
-      price: '$29',
-      period: 'per user/month',
-      features: [
-        'Unlimited expenses',
-        'Advanced AI processing',
-        'Priority support',
-        'Unlimited approval workflows',
-        'Advanced analytics',
-        'API access',
-        'Custom integrations',
-        'Bulk expense upload'
-      ],
-      buttonText: 'Start Free Trial',
-      popular: true
+      id: 'pro_monthly' as const,
+      ...PLAN_CONFIG.pro_monthly,
+      buttonText: user ? 'Upgrade Now' : 'Start Free Trial',
+      popular: true,
+      price: `$${PLAN_CONFIG.pro_monthly.price}`,
+      period: 'per month'
     },
     {
-      name: 'Enterprise',
-      description: 'For large organizations',
-      price: 'Custom',
-      period: 'pricing',
-      features: [
-        'Everything in Professional',
-        'Dedicated account manager',
-        'Custom AI model training',
-        'Advanced security features',
-        'Single sign-on (SSO)',
-        'Custom reporting',
-        'White-label options',
-        'SLA guarantee'
-      ],
-      buttonText: 'Contact Sales',
-      popular: false
+      id: 'pro_annual' as const,
+      ...PLAN_CONFIG.pro_annual,
+      buttonText: user ? 'Upgrade Now' : 'Start Free Trial',
+      popular: false,
+      price: `$${PLAN_CONFIG.pro_annual.price}`,
+      period: 'per year',
+      monthlyEquivalent: `$${PLAN_CONFIG.pro_annual.monthlyPrice}/month`,
+      savings: PLAN_CONFIG.pro_annual.savings
     }
   ];
+
+  const handleUpgrade = async (planId: 'free' | 'pro_monthly' | 'pro_annual') => {
+    if (planId === 'free') return;
+    
+    if (!user) {
+      // Redirect to sign up
+      window.location.href = '/app';
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const priceId = planId === 'pro_monthly' 
+        ? import.meta.env.VITE_STRIPE_PRO_MONTHLY_PRICE_ID
+        : import.meta.env.VITE_STRIPE_PRO_ANNUAL_PRICE_ID;
+
+      if (!priceId) {
+        throw new Error('Stripe price ID not configured');
+      }
+
+      const response = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          priceId,
+          successUrl: `${window.location.origin}/app/billing?success=true`,
+          cancelUrl: `${window.location.origin}/?canceled=true`
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      const { url } = response.data;
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error) {
+      console.error('Error upgrading plan:', error);
+      alert('Error starting upgrade process. Please try again or contact support.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const scrollToContact = () => {
     const element = document.getElementById('contact');
@@ -74,19 +97,19 @@ const Pricing: React.FC = () => {
             Simple Pricing
           </div>
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
-            Choose the Perfect Plan for Your Team
+            Choose the Perfect Plan for Your Business
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Start with a 14-day free trial. No credit card required. 
-            Scale as your business grows with transparent pricing.
+            Start with a free plan and 24-hour premium trial. No credit card required. 
+            Upgrade anytime as your business grows.
           </p>
         </div>
 
         {/* Pricing Cards */}
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {plans.map((plan, index) => (
+          {plans.map((plan) => (
             <div 
-              key={index}
+              key={plan.id}
               className={`relative bg-white rounded-2xl shadow-lg border-2 transition-all duration-300 hover:shadow-xl ${
                 plan.popular 
                   ? 'border-blue-500 transform scale-105' 
@@ -108,24 +131,30 @@ const Pricing: React.FC = () => {
                   <p className="text-gray-600">{plan.description}</p>
                   <div className="flex items-baseline">
                     <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
-                    {plan.price !== 'Custom' && (
-                      <span className="text-gray-600 ml-2">/{plan.period.split('/')[1]}</span>
+                    {plan.price !== 'Free' && (
+                      <span className="text-gray-600 ml-2">/{plan.period.split(' ')[1] || plan.period}</span>
                     )}
                   </div>
-                  {plan.price !== 'Custom' && (
-                    <p className="text-sm text-gray-500">{plan.period}</p>
+                  {plan.monthlyEquivalent && (
+                    <p className="text-sm text-gray-500">{plan.monthlyEquivalent}</p>
+                  )}
+                  {plan.savings && (
+                    <div className="inline-flex items-center bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                      {plan.savings}
+                    </div>
                   )}
                 </div>
 
                 <button
-                  onClick={scrollToContact}
+                  onClick={() => handleUpgrade(plan.id)}
+                  disabled={plan.id === 'free' && user || loading} // Disable free plan button for logged-in users
                   className={`w-full py-3 px-6 rounded-lg font-semibold transition-colors duration-200 mb-8 ${
                     plan.popular
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                  }`}
+                      ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-300'
+                      : 'bg-gray-100 text-gray-900 hover:bg-gray-200 disabled:bg-gray-200 disabled:text-gray-500'
+                  } disabled:cursor-not-allowed`}
                 >
-                  {plan.buttonText}
+                  {loading && plan.id !== 'free' ? 'Loading...' : (plan.id === 'free' && user ? 'Current Plan' : plan.buttonText)}
                 </button>
 
                 <div className="space-y-4">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, PlanType, SubscriptionStatus } from '../lib/supabase';
 
 interface UserProfile {
   id: string;
@@ -9,6 +9,10 @@ interface UserProfile {
   company_id: string | null;
   role: 'employee' | 'manager' | 'admin';
   manager_id: string | null;
+  plan_type: PlanType;
+  subscription_status: SubscriptionStatus;
+  trial_expiry: string | null;
+  stripe_customer_id: string | null;
   company?: {
     id: string;
     name: string;
@@ -113,7 +117,20 @@ export function useAuth() {
       }
 
       if (data) {
-        const { id, full_name, avatar_url, company_id, role, manager_id, company, manager } = data;
+        const { 
+          id, 
+          full_name, 
+          avatar_url, 
+          company_id, 
+          role, 
+          manager_id, 
+          plan_type,
+          subscription_status,
+          trial_expiry,
+          stripe_customer_id,
+          company, 
+          manager 
+        } = data;
         setProfile({
           id,
           full_name,
@@ -121,6 +138,10 @@ export function useAuth() {
           company_id,
           role,
           manager_id,
+          plan_type,
+          subscription_status,
+          trial_expiry,
+          stripe_customer_id,
           company: company || undefined,
           manager: manager || undefined,
         });
@@ -199,6 +220,45 @@ export function useAuth() {
     return profile.role === 'admin'; // Admins can manage anyone in their company
   };
 
+  // Helper functions for subscription-based access control
+  const hasActiveSubscription = () => {
+    if (!profile) return false;
+    return profile.subscription_status === 'active' || 
+           (profile.subscription_status === 'trialing' && 
+            profile.trial_expiry && 
+            new Date(profile.trial_expiry) > new Date());
+  };
+
+  const hasPremiumAccess = () => {
+    if (!profile) return false;
+    // Premium access for paid plans or during trial
+    if (profile.plan_type !== 'free' && profile.subscription_status === 'active') {
+      return true;
+    }
+    // Trial users get premium access
+    if (profile.subscription_status === 'trialing' && 
+        profile.trial_expiry && 
+        new Date(profile.trial_expiry) > new Date()) {
+      return true;
+    }
+    return false;
+  };
+
+  const isTrialExpired = () => {
+    if (!profile || !profile.trial_expiry) return false;
+    return profile.subscription_status === 'trialing' && 
+           new Date(profile.trial_expiry) <= new Date();
+  };
+
+  const getTrialDaysRemaining = () => {
+    if (!profile || !profile.trial_expiry || profile.subscription_status !== 'trialing') return 0;
+    const now = new Date();
+    const expiry = new Date(profile.trial_expiry);
+    const diffTime = expiry.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(0, diffDays);
+  };
+
   return {
     user,
     profile,
@@ -215,5 +275,9 @@ export function useAuth() {
     canApproveExpenses,
     canAssignManagers,
     isManagerOf,
+    hasActiveSubscription,
+    hasPremiumAccess,
+    isTrialExpired,
+    getTrialDaysRemaining,
   };
 }

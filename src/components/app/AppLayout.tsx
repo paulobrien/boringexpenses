@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import Chatbot from './Chatbot';
 import WelcomeBanner from './WelcomeBanner';
 import SubscriptionBanner from './SubscriptionBanner';
+import CookieBanner from '../common/CookieBanner';
 
 const AppLayout: React.FC = () => {
   const { user, profile, signOut, canManageUsers } = useAuth();
@@ -204,6 +205,9 @@ const AppLayout: React.FC = () => {
       
       {/* Chatbot Modal */}
       <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
+      
+      {/* Cookie Banner */}
+      <CookieBanner />
     </div>
   );
 };

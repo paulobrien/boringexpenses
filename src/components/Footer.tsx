@@ -187,6 +187,12 @@ const Footer: React.FC = () => {
           <div className="md:flex md:items-center md:justify-between">
             <div className="text-gray-400 text-sm">
               © {currentYear} Boring Expenses, Inc. All rights reserved.
+              <div className="mt-2">
+                <span className="text-xs">
+                  This site is protected by GDPR and CCPA compliant data practices. 
+                  Your privacy is our priority.
+                </span>
+              </div>
             </div>
             <div className="mt-4 md:mt-0 flex items-center space-x-6 text-sm text-gray-400">
               <div className="flex items-center">

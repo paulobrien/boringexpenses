@@ -7,6 +7,7 @@ import Testimonials from './Testimonials';
 import About from './About';
 import Contact from './Contact';
 import Footer from './Footer';
+import CookieBanner from './common/CookieBanner';
 
 const MarketingSite: React.FC = () => {
   return (
@@ -21,6 +22,7 @@ const MarketingSite: React.FC = () => {
         <Contact />
       </main>
       <Footer />
+      <CookieBanner />
     </div>
   );
 };

@@ -222,7 +222,12 @@ const AddExpense: React.FC = () => {
         throw new Error(errorData.error || 'Failed to extract receipt data');
       }
 
-      const extractedData = await response.json();
+      let extractedData = await response.json();
+      
+      // Handle case where AI returns an array of objects - use the first item
+      if (Array.isArray(extractedData) && extractedData.length > 0) {
+        extractedData = extractedData[0];
+      }
       
       // Only update fields if AI extraction was confident
       if (extractedData.confidence > 0.3) {

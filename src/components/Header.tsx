@@ -49,6 +49,12 @@ const Header: React.FC = () => {
               Pricing
             </button>
             <button
+              onClick={() => scrollToSection('testimonials')}
+              className="text-gray-700 hover:text-blue-700 transition-colors duration-200"
+            >
+              Testimonials
+            </button>
+            <button
               onClick={() => scrollToSection('about')}
               className="text-gray-700 hover:text-blue-700 transition-colors duration-200"
             >
@@ -93,6 +99,12 @@ const Header: React.FC = () => {
                 className="text-left text-gray-700 hover:text-blue-700 transition-colors duration-200"
               >
                 Pricing
+              </button>
+              <button
+                onClick={() => scrollToSection('testimonials')}
+                className="text-left text-gray-700 hover:text-blue-700 transition-colors duration-200"
+              >
+                Testimonials
               </button>
               <button
                 onClick={() => scrollToSection('about')}

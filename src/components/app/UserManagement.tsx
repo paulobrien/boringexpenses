@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, UserPlus, Edit3, Shield, User, X, Clock, Mail } from 'lucide-react';
+import { Users, UserPlus, Edit3, Shield, User, X, Clock, Mail, Check } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -12,7 +12,7 @@ interface CompanyUser {
   manager?: {
     id: string;
     full_name: string;
-  };
+  } | null;
 }
 
 interface PendingInvite {
@@ -32,6 +32,8 @@ const UserManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editingManagerFor, setEditingManagerFor] = useState<string | null>(null);
+  const [tempRole, setTempRole] = useState<'employee' | 'manager' | 'admin' | null>(null);
+  const [tempManagerId, setTempManagerId] = useState<string | null>(null);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState<'employee' | 'manager' | 'admin'>('employee');
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -50,13 +52,20 @@ const UserManagement: React.FC = () => {
           role, 
           manager_id,
           created_at,
-          manager:profiles!manager_id(id, full_name)
+          manager:manager_id(id, full_name)
         `)
         .eq('company_id', profile.company_id)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setUsers(data || []);
+      
+      // Supabase returns manager as an array with the foreign key syntax, so we need to handle it
+      const processedData = data?.map(user => ({
+        ...user,
+        manager: Array.isArray(user.manager) ? user.manager[0] : user.manager
+      })) || [];
+      
+      setUsers(processedData);
     } catch (error) {
       console.error('Error loading company users:', error);
       setError('Failed to load company users');
@@ -89,12 +98,14 @@ const UserManagement: React.FC = () => {
   }, [loadCompanyUsers, loadPendingInvites]);
 
   useEffect(() => {
-    if (canManageUsers()) {
+    // Check role directly from profile instead of using canManageUsers function
+    if (profile?.role === 'admin') {
       loadData();
     } else {
       setLoading(false);
     }
-  }, [canManageUsers, loadData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.role, loadData]);
 
   const updateUserRole = async (userId: string, newRole: 'employee' | 'manager' | 'admin') => {
     try {
@@ -107,10 +118,24 @@ const UserManagement: React.FC = () => {
 
       setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
       setEditingUser(null);
+      setTempRole(null);
+      setSuccess('User role updated successfully');
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
       console.error('Error updating user role:', error);
-      alert('Failed to update user role');
+      setError('Failed to update user role');
+      setTimeout(() => setError(null), 3000);
     }
+  };
+
+  const startEditRole = (userId: string, currentRole: 'employee' | 'manager' | 'admin') => {
+    setEditingUser(userId);
+    setTempRole(currentRole);
+  };
+
+  const cancelEditRole = () => {
+    setEditingUser(null);
+    setTempRole(null);
   };
 
   const updateUserManager = async (userId: string, managerId: string | null) => {
@@ -125,10 +150,24 @@ const UserManagement: React.FC = () => {
       // Reload users to get updated manager information
       await loadCompanyUsers();
       setEditingManagerFor(null);
+      setTempManagerId(null);
+      setSuccess('Manager assignment updated successfully');
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
       console.error('Error updating user manager:', error);
-      alert('Failed to update user manager');
+      setError('Failed to update user manager');
+      setTimeout(() => setError(null), 3000);
     }
+  };
+
+  const startEditManager = (userId: string, currentManagerId: string | null) => {
+    setEditingManagerFor(userId);
+    setTempManagerId(currentManagerId);
+  };
+
+  const cancelEditManager = () => {
+    setEditingManagerFor(null);
+    setTempManagerId(null);
   };
 
   const getAvailableManagers = (excludeUserId: string) => {
@@ -353,11 +392,11 @@ const UserManagement: React.FC = () => {
                     </p>
                     <div className="text-xs text-gray-500 space-y-1">
                       <p>Joined {new Date(companyUser.created_at).toLocaleDateString()}</p>
-                      {companyUser.manager && (
-                        <p>Manager: {companyUser.manager.full_name}</p>
-                      )}
-                      {!companyUser.manager && companyUser.role === 'employee' && (
-                        <p className="text-amber-600">No manager assigned</p>
+                      {/* Only show manager info for non-admin roles */}
+                      {companyUser.role !== 'admin' && (
+                        <p className={companyUser.manager ? '' : 'text-amber-600'}>
+                          {companyUser.manager ? `Manager: ${companyUser.manager.full_name}` : 'No Manager Assigned'}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -366,55 +405,95 @@ const UserManagement: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   {/* Role Management */}
                   {editingUser === companyUser.id ? (
-                    <select
-                      value={companyUser.role}
-                      onChange={(e) => updateUserRole(companyUser.id, e.target.value as 'employee' | 'manager' | 'admin')}
-                      className="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      disabled={companyUser.id === user?.id} // Can't change own role
-                    >
-                      <option value="employee">Employee</option>
-                      <option value="manager">Manager</option>
-                      <option value="admin">Admin</option>
-                    </select>
+                    <div className="flex items-center space-x-1">
+                      <select
+                        value={tempRole || companyUser.role}
+                        onChange={(e) => setTempRole(e.target.value as 'employee' | 'manager' | 'admin')}
+                        className="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        <option value="employee">Employee</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                      <button
+                        onClick={() => tempRole && updateUserRole(companyUser.id, tempRole)}
+                        className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded"
+                        title="Confirm"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={cancelEditRole}
+                        className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                        title="Cancel"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : editingManagerFor === companyUser.id ? (
+                    <div className="flex items-center space-x-1">
+                      <select
+                        value={tempManagerId !== null ? tempManagerId : (companyUser.manager_id || '')}
+                        onChange={(e) => setTempManagerId(e.target.value || null)}
+                        className="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        <option value="">No Manager</option>
+                        {getAvailableManagers(companyUser.id).map(manager => (
+                          <option key={manager.id} value={manager.id}>
+                            {manager.full_name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => updateUserManager(companyUser.id, tempManagerId)}
+                        className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded"
+                        title="Confirm"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={cancelEditManager}
+                        className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                        title="Cancel"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   ) : (
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(companyUser.role)}`}>
-                      {companyUser.role.charAt(0).toUpperCase() + companyUser.role.slice(1)}
-                    </span>
-                  )}
-
-                  {/* Manager Assignment */}
-                  {companyUser.role === 'employee' && editingManagerFor === companyUser.id ? (
-                    <select
-                      value={companyUser.manager_id || ''}
-                      onChange={(e) => updateUserManager(companyUser.id, e.target.value || null)}
-                      className="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    >
-                      <option value="">No Manager</option>
-                      {getAvailableManagers(companyUser.id).map(manager => (
-                        <option key={manager.id} value={manager.id}>
-                          {manager.full_name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : companyUser.role === 'employee' ? (
-                    <button
-                      onClick={() => setEditingManagerFor(companyUser.id)}
-                      className="px-2 py-1 text-xs text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50"
-                      title="Assign manager"
-                    >
-                      Manager
-                    </button>
-                  ) : null}
-
-                  {/* Edit Role Button */}
-                  {companyUser.id !== user?.id && editingUser !== companyUser.id && (
-                    <button
-                      onClick={() => setEditingUser(companyUser.id)}
-                      className="p-1 text-gray-400 hover:text-gray-600"
-                      title="Edit role"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
+                    <>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(companyUser.role)}`}>
+                        {companyUser.role.charAt(0).toUpperCase() + companyUser.role.slice(1)}
+                      </span>
+                      {companyUser.id !== user?.id && (
+                        <div className="relative group">
+                          <button
+                            className="p-1 text-gray-400 hover:text-blue-600"
+                            title="Edit user settings"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                          </button>
+                          {/* Invisible hover bridge - covers gap between button and dropdown */}
+                          <div className="hidden group-hover:block absolute right-0 -top-2 -bottom-12 w-36 z-10"></div>
+                          {/* Dropdown menu */}
+                          <div className="hidden group-hover:block absolute right-0 bottom-full mb-2 w-36 bg-white border border-gray-200 rounded-md shadow-lg z-20">
+                            <button
+                              onClick={() => startEditRole(companyUser.id, companyUser.role)}
+                              className="block w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 rounded-t-md"
+                            >
+                              Change Role
+                            </button>
+                            {companyUser.role !== 'admin' && (
+                              <button
+                                onClick={() => startEditManager(companyUser.id, companyUser.manager_id)}
+                                className="block w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 border-t border-gray-100 rounded-b-md"
+                              >
+                                Assign Manager
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

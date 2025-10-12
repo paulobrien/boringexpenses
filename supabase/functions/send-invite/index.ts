@@ -26,10 +26,23 @@ Deno.serve(async (req: Request) => {
 
   try {
     // --- AUTHENTICATION START ---
+    // Create client with user's auth token for permission checks
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+    );
+
+    // Create admin client for admin operations (like checking if user exists)
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     );
 
     const { data: { user } } = await supabaseClient.auth.getUser();
@@ -115,8 +128,8 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Check if user is already on the platform
-    const { data: existingUser } = await supabaseClient.auth.admin.getUserByEmail(email);
+    // Check if user is already on the platform (using admin client)
+    const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail(email);
     
     if (existingUser?.user) {
       // Check if user is already in this company

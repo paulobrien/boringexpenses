@@ -12,6 +12,11 @@ const Settings: React.FC = () => {
     full_name: '',
     avatar_url: '',
   });
+  const [companyData, setCompanyData] = useState({
+    name: '',
+  });
+  const [companyLoading, setCompanyLoading] = useState(false);
+  const [companySuccess, setCompanySuccess] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarSignedUrl, setAvatarSignedUrl] = useState<string | null>(null);
@@ -54,6 +59,9 @@ const Settings: React.FC = () => {
       setProfileData({
         full_name: profile.full_name || '',
         avatar_url: profile.avatar_url || '',
+      });
+      setCompanyData({
+        name: profile.company?.name || '',
       });
     }
   }, [profile]);
@@ -160,6 +168,46 @@ const Settings: React.FC = () => {
       alert('Error updating profile. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCompanyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCompanyData({
+      ...companyData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleCompanySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !profile?.company_id) return;
+
+    setCompanyLoading(true);
+    setCompanySuccess(false);
+
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .update({
+          name: companyData.name,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', profile.company_id);
+
+      if (error) throw error;
+
+      // Refresh profile to get updated company data
+      if (user) {
+        await loadUserProfile(user.id);
+      }
+      
+      setCompanySuccess(true);
+      setTimeout(() => setCompanySuccess(false), 3000);
+    } catch (error) {
+      console.error('Error updating company:', error);
+      alert('Error updating company. Please try again.');
+    } finally {
+      setCompanyLoading(false);
     }
   };
 
@@ -286,40 +334,112 @@ const Settings: React.FC = () => {
             <h2 className="text-xl font-bold text-gray-900">Company Information</h2>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-center py-3 border-b border-gray-100">
-              <span className="text-gray-600">Company Name</span>
-              <span className="font-medium text-gray-900">
-                {profile?.company?.name || 'No company assigned'}
-              </span>
+          {companySuccess && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
+              <Check className="h-5 w-5 text-green-600 mr-2" />
+              <span className="text-green-800">Company information updated successfully!</span>
             </div>
-            <div className="flex justify-between items-center py-3 border-b border-gray-100">
-              <span className="text-gray-600">Company ID</span>
-              <span className="font-medium text-gray-900 text-sm">
-                {profile?.company?.id || 'N/A'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-3 border-b border-gray-100">
-              <span className="text-gray-600">Your Role</span>
-              <div className="flex items-center">
-                <Shield className="w-4 h-4 mr-2 text-blue-600" />
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  profile?.role === 'admin' ? 'bg-red-100 text-red-800' :
-                  profile?.role === 'manager' ? 'bg-blue-100 text-blue-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {profile?.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : 'Employee'}
-                </span>
-              </div>
-            </div>
-          </div>
+          )}
 
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <strong>Note:</strong> Company settings can only be changed by contacting support. 
-              This ensures proper access control and data security.
-            </p>
-          </div>
+          {canManageUsers() ? (
+            <form onSubmit={handleCompanySubmit} className="space-y-6">
+              <div>
+                <label htmlFor="company_name" className="block text-sm font-medium text-gray-700 mb-2">
+                  Company Name
+                </label>
+                <input
+                  type="text"
+                  id="company_name"
+                  name="name"
+                  value={companyData.name}
+                  onChange={handleCompanyChange}
+                  placeholder="Enter company name"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                  <span className="text-gray-600">Company ID</span>
+                  <span className="font-medium text-gray-900 text-sm">
+                    {profile?.company?.id || 'N/A'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                  <span className="text-gray-600">Your Role</span>
+                  <div className="flex items-center">
+                    <Shield className="w-4 h-4 mr-2 text-blue-600" />
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      profile?.role === 'admin' ? 'bg-red-100 text-red-800' :
+                      profile?.role === 'manager' ? 'bg-blue-100 text-blue-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {profile?.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : 'Employee'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={companyLoading}
+                className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
+              >
+                {companyLoading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Save className="mr-2 h-5 w-5" />
+                    Save Company Changes
+                  </>
+                )}
+              </button>
+
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Admin Privilege:</strong> As an admin, you can edit the company name. 
+                  Other company settings require contacting support.
+                </p>
+              </div>
+            </form>
+          ) : (
+            <>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                  <span className="text-gray-600">Company Name</span>
+                  <span className="font-medium text-gray-900">
+                    {profile?.company?.name || 'No company assigned'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                  <span className="text-gray-600">Company ID</span>
+                  <span className="font-medium text-gray-900 text-sm">
+                    {profile?.company?.id || 'N/A'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                  <span className="text-gray-600">Your Role</span>
+                  <div className="flex items-center">
+                    <Shield className="w-4 h-4 mr-2 text-blue-600" />
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      profile?.role === 'admin' ? 'bg-red-100 text-red-800' :
+                      profile?.role === 'manager' ? 'bg-blue-100 text-blue-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {profile?.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : 'Employee'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Note:</strong> Company settings can only be changed by company admins or by contacting support. 
+                  This ensures proper access control and data security.
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
         {/* User Management - Only for Admins */}

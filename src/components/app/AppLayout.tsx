@@ -136,7 +136,7 @@ const AppLayout: React.FC = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
-                      {profile?.full_name || user?.email}
+                      {profile?.full_name || user?.email?.split('@')[0] || 'User'}
                     </p>
                     {profile?.role && (
                       <span className={`inline-flex w-fit text-xs px-2 py-0.5 rounded-full font-medium ${

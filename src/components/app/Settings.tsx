@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { User, Save, Check, Building, Camera, X, Shield } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
@@ -22,7 +22,7 @@ const Settings: React.FC = () => {
   const [avatarSignedUrl, setAvatarSignedUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     const isValidSession = await validateSession();
     if (!isValidSession || !user) return;
 
@@ -46,13 +46,13 @@ const Settings: React.FC = () => {
     } catch (error) {
       console.error('Error loading profile:', error);
     }
-  };
+  }, [user, validateSession]);
 
   useEffect(() => {
     if (user) {
       loadProfile();
     }
-  }, [user]);
+  }, [user, loadProfile]);
 
   useEffect(() => {
     if (profile) {
@@ -140,7 +140,9 @@ const Settings: React.FC = () => {
             .from('images')
             .createSignedUrl(filePath, 60 * 60);
           setAvatarSignedUrl(data?.signedUrl || null);
-        } catch {}
+        } catch (error) {
+          console.error('Error creating signed URL:', error);
+        }
         setUploading(false);
       }
 

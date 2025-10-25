@@ -12,7 +12,7 @@ import { getPlanConfig } from '../../lib/stripe';
 import { supabase } from '../../lib/supabase';
 
 const Billing: React.FC = () => {
-  const { profile, hasActiveSubscription, hasPremiumAccess, isTrialExpired, getTrialDaysRemaining } = useAuth();
+  const { profile, hasPremiumAccess, isTrialExpired, getTrialDaysRemaining } = useAuth();
   const [loading, setLoading] = useState(false);
 
   if (!profile) {

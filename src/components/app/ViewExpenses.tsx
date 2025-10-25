@@ -70,6 +70,7 @@ const ViewExpenses: React.FC = () => {
       loadClaims();
       loadCategories();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const getSignedImageUrl = async (imagePath: string): Promise<string | null> => {

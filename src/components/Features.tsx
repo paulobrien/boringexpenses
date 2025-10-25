@@ -1,5 +1,5 @@
 import React from 'react';
-import { Brain, Camera, CheckCircle, CreditCard, BarChart3, Users, Shield, Zap } from 'lucide-react';
+import { Brain, CheckCircle, CreditCard, BarChart3, Users, Shield, Zap } from 'lucide-react';
 
 const Features: React.FC = () => {
   const features = [

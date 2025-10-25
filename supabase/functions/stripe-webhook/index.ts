@@ -220,7 +220,7 @@ async function updateUserSubscription(subscription: Stripe.Subscription, userId:
   
   const subscriptionData = {
     plan_type: planType,
-    subscription_status: subscription.status as any,
+    subscription_status: subscription.status as 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'trialing' | 'unpaid',
     updated_at: new Date().toISOString(),
   }
 
@@ -237,7 +237,7 @@ async function updateUserSubscription(subscription: Stripe.Subscription, userId:
       user_id: userId,
       stripe_customer_id: subscription.customer as string,
       stripe_subscription_id: subscription.id,
-      status: subscription.status as any,
+      status: subscription.status as 'active' | 'canceled' | 'incomplete' | 'incomplete_expired' | 'past_due' | 'trialing' | 'unpaid',
       plan_type: planType,
       current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
       current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),

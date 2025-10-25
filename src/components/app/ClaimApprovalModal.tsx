@@ -75,7 +75,7 @@ const ClaimApprovalModal: React.FC<ClaimApprovalModalProps> = ({
           claim.id,
           100.00, // Placeholder amount
           'GBP',
-          `${claim.user?.full_name}@example.com` || '',
+          claim.user?.full_name ? `${claim.user.full_name}@example.com` : '',
           claim.user?.full_name || '',
           claim.title
         );

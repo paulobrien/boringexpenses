@@ -51,7 +51,7 @@ export function useAuth() {
         } else {
           setProfile(null);
         }
-      } catch (error) {
+      } catch {
         setUser(null);
         setProfile(null);
         setSession(null);
@@ -177,7 +177,7 @@ export function useAuth() {
       }
       
       return !!session;
-    } catch (error) {
+    } catch {
       await supabase.auth.signOut();
       setUser(null);
       return false;
@@ -213,6 +213,7 @@ export function useAuth() {
   const canManageUsers = () => profile?.role === 'admin';
   const canApproveExpenses = () => profile?.role === 'manager' || profile?.role === 'admin';
   const canAssignManagers = () => profile?.role === 'admin';
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const isManagerOf = (_userId: string) => {
     if (!profile || !isManager()) return false;
     // This would need to be checked against the actual user's manager_id

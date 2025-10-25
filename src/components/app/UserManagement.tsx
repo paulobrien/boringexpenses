@@ -104,7 +104,6 @@ const UserManagement: React.FC = () => {
     } else {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.role, loadData]);
 
   const updateUserRole = async (userId: string, newRole: 'employee' | 'manager' | 'admin') => {

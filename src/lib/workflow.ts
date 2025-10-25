@@ -113,7 +113,7 @@ export const processPayment = async (
   userEmail: string,
   userName: string,
   claimTitle: string,
-  bankDetails?: any
+  bankDetails?: Record<string, unknown>
 ) => {
   try {
     const { data, error } = await supabase.functions.invoke('process-payment', {
@@ -146,7 +146,7 @@ export const updateClaimStatus = async (
   userId: string
 ) => {
   try {
-    const updates: any = {
+    const updates: Record<string, string | null> = {
       status: newStatus,
       approved_by: userId,
       approved_at: new Date().toISOString()

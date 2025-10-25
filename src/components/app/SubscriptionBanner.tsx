@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
 const SubscriptionBanner: React.FC = () => {
-  const { profile, hasActiveSubscription, hasPremiumAccess, isTrialExpired, getTrialDaysRemaining } = useAuth();
+  const { profile, hasActiveSubscription, isTrialExpired, getTrialDaysRemaining } = useAuth();
 
   if (!profile) return null;
 

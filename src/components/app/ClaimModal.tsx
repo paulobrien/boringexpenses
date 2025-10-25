@@ -24,7 +24,6 @@ const ClaimModal: React.FC<ClaimModalProps> = ({ claim, onClose, onSave }) => {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [filed, setFiled] = useState(false);
-  const [status, setStatus] = useState<ClaimStatus>('unfiled');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -39,7 +38,6 @@ const ClaimModal: React.FC<ClaimModalProps> = ({ claim, onClose, onSave }) => {
         description: claim.description,
       });
       setFiled(claim.filed || false);
-      setStatus(claim.status || 'unfiled');
     }
   }, [claim]);
 

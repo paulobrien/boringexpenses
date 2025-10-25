@@ -108,6 +108,15 @@ const UserManagement: React.FC = () => {
 
   const updateUserRole = async (userId: string, newRole: 'employee' | 'manager' | 'admin') => {
     try {
+      // Prevent users from modifying their own role
+      if (userId === user?.id) {
+        setError('You cannot change your own role');
+        setTimeout(() => setError(null), 3000);
+        setEditingUser(null);
+        setTempRole(null);
+        return;
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update({ role: newRole })
@@ -122,7 +131,7 @@ const UserManagement: React.FC = () => {
       setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
       console.error('Error updating user role:', error);
-      setError('Failed to update user role');
+      setError('Failed to update user role. You can only modify users in your company.');
       setTimeout(() => setError(null), 3000);
     }
   };
@@ -463,6 +472,7 @@ const UserManagement: React.FC = () => {
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleBadgeColor(companyUser.role)}`}>
                         {companyUser.role.charAt(0).toUpperCase() + companyUser.role.slice(1)}
                       </span>
+                      {/* Only show edit options for other users, not yourself */}
                       {companyUser.id !== user?.id && (
                         <div className="relative group">
                           <button
@@ -491,6 +501,12 @@ const UserManagement: React.FC = () => {
                             )}
                           </div>
                         </div>
+                      )}
+                      {/* Show "You" badge for current user */}
+                      {companyUser.id === user?.id && (
+                        <span className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-full">
+                          You
+                        </span>
                       )}
                     </>
                   )}
